@@ -1,0 +1,23 @@
+name: loop
+ghc-options:
+  - -fdefer-typed-holes
+  # - -fdefer-type-errors
+
+dependencies:
+  - base
+  - random
+
+executables:
+  loop:
+    main: Main.hs
+    source-dirs:
+      - src
+
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs:
+      - test
+      - src
+    dependencies:
+      - hspec
