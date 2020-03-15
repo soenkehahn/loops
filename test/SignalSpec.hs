@@ -99,6 +99,18 @@ spec = do
       let signal = take 1 (constant 23) +++ constant 42
       test 1 3 signal [65, 42, 42 :: Double]
 
+  describe "/\\" $ do
+    it "multiplies two signals" $ do
+      constant 3 /\ constant 4 `shouldYield` [12, 12, 12 :: Double]
+
+    it "stops when the first signal stops" $ do
+      let signal = take 1 (constant 3) /\ constant 4
+      test 1 3 signal [12 :: Double]
+
+    it "stops when the second signal stops" $ do
+      let signal = constant 3 /\ take 1 (constant 4)
+      test 1 3 signal [12 :: Double]
+
   describe "silence" $ do
     it "returns silences of the given length" $ do
       test 1 4 (silence 3) [0, 0, 0 :: Integer]
@@ -129,3 +141,10 @@ spec = do
     it "allows to specify the length of the ramp" $ do
       let signal = ramp 0.5 0.3 1.3
       test 0.1 2 signal [0.3, 0.5, 0.7, 0.9, 1.1, 1.3 :: Double]
+
+  describe "adsr" $ do
+    it "allows to have a attack" $ do
+      test 0.1 2 (adsr 1 (Adsr 0.3 0) (constant 10)) [0, 10 / 3, 20 / 3, 10, 10, 10, 10, 10, 10, 10, 10]
+
+    it "allows to have a release" $ do
+      test 0.1 2 (adsr 1 (Adsr 0 0.3) (constant 10)) [10, 10, 10, 10, 10, 10, 10, 10, 10, 20 / 3, 10 / 3]

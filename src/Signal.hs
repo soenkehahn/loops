@@ -104,6 +104,12 @@ a +++ b = Signal $ \ delta -> do
     (Nothing, Just (y, nextB)) -> Just (y, nextB)
     (Nothing, Nothing) -> Nothing
 
+(/\) :: Num a => Signal a -> Signal a -> Signal a
+a /\ b = Signal $ \ delta -> do
+  case (runSignal a delta, runSignal b delta) of
+    (Just (x, nextA), Just (y, nextB)) -> Just (x * y, nextA /\ nextB)
+    _ -> Nothing
+
 silence :: Num a => Double -> Signal a
 silence length = take length (constant 0)
 
@@ -125,6 +131,7 @@ shift length signal = if length < 0
   else silence length |> signal
 
 ramp :: Double -> Double -> Double -> Signal Double
+ramp 0 _ _ = empty
 ramp length start end = stateful start $ \ delta state ->
   if reached state
     then Nothing
@@ -134,3 +141,17 @@ ramp length start end = stateful start $ \ delta state ->
       if start < end
         then state >= end
         else state <= end
+
+data Adsr = Adsr {
+  attack :: Double,
+  release :: Double
+}
+
+adsr :: Double -> Adsr -> Signal Double -> Signal Double
+adsr length (Adsr attack release) signal =
+  envelope /\ signal
+  where
+    envelope =
+      ramp attack 0 1 |>
+      take (length - attack - release) (constant 1) |>
+      ramp release 1 0

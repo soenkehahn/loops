@@ -12,6 +12,7 @@ main = do
 
 loop :: Signal Double
 loop =
+  -- take 1.6 $
   fmap (* 0.3) $
     part 1 |>
     part (4 / 3) |>
@@ -33,7 +34,7 @@ arp base frequencies =
   repeat 4 (foldl' (\ acc frequency -> acc |> note base frequency) empty frequencies)
 
 note :: Double -> Double -> Signal Double
-note base frequency = take 0.2 $ speedup (constant (base * frequency)) $ fmap sin phase
+note base frequency = adsr 0.2 (Adsr 0.01 0.05) $ speedup (constant (base * frequency)) $ fmap sin phase
 
 snares =
   -- shift (- 0.03) $
@@ -56,6 +57,7 @@ snare =
     & fmap (* 0.3)
 
 bass base =
+  shift (- 0.02) $
   inBars 3.2 $
     fill 3 (n 50) |> n 25 :
     n 50 :
