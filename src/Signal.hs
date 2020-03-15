@@ -100,3 +100,10 @@ fill length signal = take length (signal |> constant 0)
 
 saw :: Signal Double
 saw = fmap (project (0, tau) (-1, 1)) phase
+
+shift :: Show a => Double -> Signal a -> Signal a
+shift length signal = if length < 0
+  then Signal $ \ delta ->
+    case runSignal signal (- length / 2) of -- wtf, why (/ 2) ???
+      Just (_, next) -> runSignal next delta
+  else _

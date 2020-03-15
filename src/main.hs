@@ -25,6 +25,7 @@ note :: Double -> Signal Double
 note frequency = take 0.2 $ speedup (constant frequency) $ fmap sin phase
 
 snares =
+  shift (- 0.03) $
   inBars 1.6 $
     silence 0.8 |> snare :
     silence 0.8 |> snare :
