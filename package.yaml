@@ -10,7 +10,7 @@ dependencies:
 
 executables:
   loop:
-    main: Main.hs
+    main: main.hs
     source-dirs:
       - src
 
