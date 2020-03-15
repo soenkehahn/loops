@@ -9,20 +9,27 @@ main = do
   putStr $ unlines $ map show $ toList (1 / 44100) $ take 100 loop
 
 loop :: Signal Double
-loop = arps +++ snares +++ bass
+loop = -- speedup (constant 1.0)
+    part 1 |>
+    part (4 / 3) |>
+    part 1 |>
+    part (3 / 2) |>
+    empty
+  where
+    part base = arps base +++ snares +++ bass base
 
-arps =
-  arp [200, 400, 300, 250] |>
-  arp [200, 400, 300, 240] |>
-  arp [200, 400, 300, 250] |>
-  arp [200, 400, 300, 240] |>
+arps base =
+  arp base [200, 400, 300, 250] |>
+  arp base [200, 400, 300, 240] |>
+  arp base [200, 400, 300, 250] |>
+  arp base [200, 400, 300, 240] |>
   empty
 
-arp frequencies =
-  repeat 4 (foldl' (\ acc frequency -> acc |> note frequency) empty frequencies)
+arp base frequencies =
+  repeat 4 (foldl' (\ acc frequency -> acc |> note base frequency) empty frequencies)
 
-note :: Double -> Signal Double
-note frequency = take 0.2 $ speedup (constant frequency) $ fmap sin phase
+note :: Double -> Double -> Signal Double
+note base frequency = take 0.2 $ speedup (constant (base * frequency)) $ fmap sin phase
 
 snares =
   -- shift (- 0.03) $
@@ -44,7 +51,7 @@ snare =
     & take 0.06
     & fmap (* 0.3)
 
-bass =
+bass base =
   inBars 3.2 $
     fill 3 (n 50) |> n 25 :
     n 50 :
@@ -52,4 +59,4 @@ bass =
     n 50 |> n 25 |> n 50 :
     []
   where
-    n frequency = take 0.2 $ speedup (constant frequency) saw
+    n frequency = take 0.2 $ speedup (constant (base * frequency)) saw
