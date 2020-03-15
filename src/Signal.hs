@@ -1,9 +1,11 @@
 {-# LANGUAGE DeriveFunctor #-}
 
-module Signal where
+module Signal (
+  module Prelude,
+  module Signal,
+) where
 
-import Control.Arrow
-import Prelude hiding (take)
+import Prelude hiding (take, repeat)
 import System.Random
 import Data.Fixed
 
@@ -50,6 +52,9 @@ fromList list = stateful list $ \ delta list -> case list of
 random :: Random a => (a, a) -> Signal a
 random bounds = fromList $ randomRs bounds (mkStdGen 42)
 
+empty :: Signal a
+empty = Signal $ \ _delta -> Nothing
+
 -- audio signals
 
 tau :: Double
@@ -72,3 +77,23 @@ speedup factorSignal inputSignal = Signal $ \ delta -> do
 a |> b = Signal $ \ delta -> case runSignal a delta of
   Just (x, nextA) -> Just (x, nextA |> b)
   Nothing -> runSignal b delta
+
+repeat :: Integer -> Signal a -> Signal a
+repeat n signal =
+  if n <= 0
+    then empty
+    else signal |> repeat (n - 1) signal
+
+(+++) :: Num a => Signal a -> Signal a -> Signal a
+a +++ b = Signal $ \ delta -> do
+  case (runSignal a delta, runSignal b delta) of
+    (Just (x, nextA), Just (y, nextB)) -> Just (x + y, nextA +++ nextB)
+    (Just (x, nextA), Nothing) -> Just (x, nextA)
+    (Nothing, Just (y, nextB)) -> Just (y, nextB)
+    (Nothing, Nothing) -> Nothing
+
+silence :: Num a => Double -> Signal a
+silence length = take length (constant 0)
+
+fill :: Num a => Double -> Signal a -> Signal a
+fill length signal = take length (signal |> constant 0)

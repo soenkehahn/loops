@@ -2,7 +2,7 @@ module SignalSpec where
 
 import Test.Hspec
 import Signal
-import Prelude hiding (take)
+import Prelude ()
 
 shouldYield :: (Show a, Eq a) => Signal a -> [a] -> IO ()
 shouldYield signal expected = do
@@ -52,3 +52,29 @@ spec = do
     it "allows to sequentialize signals" $ do
       let signal = take 0.5 (constant 23) |> take 0.5 (constant 42)
       test 0.25 3 signal [23, 23, 42, 42]
+
+  describe "repeat" $ do
+    it "repeats a signal n times" $ do
+      test 1 10 (repeat 3 (take 1 (constant 42))) [42, 42, 42]
+
+  describe "+++" $ do
+    it "adds two signals" $ do
+      let signal = constant 23 +++ constant 42
+      test 1 3 signal [65, 65, 65]
+
+    it "keeps the first signal if the second stops" $ do
+      let signal = constant 23 +++ take 1 (constant 42)
+      test 1 3 signal [65, 23, 23]
+
+    it "keeps the second signal if the first stops" $ do
+      let signal = take 1 (constant 23) +++ constant 42
+      test 1 3 signal [65, 42, 42]
+
+  describe "silence" $ do
+    it "returns silences of the given length" $ do
+      test 1 4 (silence 3) [0, 0, 0]
+
+  describe "fill" $ do
+    it "plays back the given signal but fills the rest with silence" $ do
+      let signal = fill 2 (take 1 (constant 42))
+      test 0.5 4 signal [42, 42, 0, 0]

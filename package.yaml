@@ -1,7 +1,7 @@
 name: loop
 ghc-options:
   - -fdefer-typed-holes
-  # - -fdefer-type-errors
+  - -fdefer-type-errors
 
 dependencies:
   - base

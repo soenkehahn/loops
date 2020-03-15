@@ -1,15 +1,35 @@
 
 import Signal
-import Prelude hiding (take)
+import Prelude ()
 import Data.Function
+import Data.List (foldl')
 
 main :: IO ()
 main = do
-  putStr $ unlines $ map show $ toList (1 / 44100) $ take 1 loop
+  putStr $ unlines $ map show $ toList (1 / 44100) $ take 100 loop
 
 loop :: Signal Double
-loop =
-  note 200 |> note 400
+loop = arps +++ snares
+
+arps =
+  arp [200, 400, 300, 250] |>
+  arp [200, 400, 300, 240] |>
+  empty
+
+arp frequencies =
+  repeat 4 (foldl' (\ acc frequency -> acc |> note frequency) empty frequencies)
 
 note :: Double -> Signal Double
 note frequency = take 0.2 $ speedup (constant frequency) $ fmap sin phase
+
+snares =
+  fill 1.6 (silence 0.8 |> snare) |>
+  silence 0.8 |> snare |> silence 0.7 |>
+  silence 0.8 |> snare |> silence 0.5 |> snare |> silence 0.1 |>
+  silence 0.8 |> snare |> silence 0.7 |>
+  empty
+
+snare =
+  random (-1, 1)
+    & take 0.1
+    & fmap (* 0.2)
