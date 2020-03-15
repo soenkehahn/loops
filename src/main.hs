@@ -9,12 +9,13 @@ main = do
   putStr $ unlines $ map show $ toList (1 / 44100) $ take 100 loop
 
 loop :: Signal Double
-loop = -- speedup (constant 1.0)
+loop =
   -- take 1.6 $
     part 1 |>
     part (4 / 3) |>
     part 1 |>
-    part (3 / 2) |>
+    -- part (3 / 2) |>
+    take 0.6 (part 1) |>
     empty
   where
     part base = arps base +++ snares +++ bass base
