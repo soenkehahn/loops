@@ -10,5 +10,5 @@ main = do
 loop :: Signal Double
 loop = do
   let lfo = fmap sin phase
-        & fmap (project (-1, 1) (-10, 10))
-  speedup (fmap (+ 440) lfo) $ fmap sin phase
+        & fmap (project (-1, 1) (430, 450))
+  speedup lfo $ fmap sin phase

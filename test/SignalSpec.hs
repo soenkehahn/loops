@@ -46,4 +46,4 @@ spec = do
   it "allows to easily use an lfo" $ do
     let lfo = fmap (project (-1, 1) (300, 400) . sin) phase
         signal = speedup lfo $ fmap sin phase
-    signal `shouldYield` [0.0,-2.1561211432632476e-14,-2.1561211432632476e-14]
+    signal `shouldYield` [0.0, -2.1561211432632476e-14, -2.1561211432632476e-14]
