@@ -97,3 +97,6 @@ silence length = take length (constant 0)
 
 fill :: Num a => Double -> Signal a -> Signal a
 fill length signal = take length (signal |> constant 0)
+
+saw :: Signal Double
+saw = fmap (project (0, tau) (-1, 1)) phase

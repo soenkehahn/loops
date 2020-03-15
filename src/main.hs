@@ -9,9 +9,11 @@ main = do
   putStr $ unlines $ map show $ toList (1 / 44100) $ take 100 loop
 
 loop :: Signal Double
-loop = arps +++ snares
+loop = arps +++ snares +++ bass
 
 arps =
+  arp [200, 400, 300, 250] |>
+  arp [200, 400, 300, 240] |>
   arp [200, 400, 300, 250] |>
   arp [200, 400, 300, 240] |>
   empty
@@ -23,13 +25,30 @@ note :: Double -> Signal Double
 note frequency = take 0.2 $ speedup (constant frequency) $ fmap sin phase
 
 snares =
-  fill 1.6 (silence 0.8 |> snare) |>
-  silence 0.8 |> snare |> silence 0.7 |>
-  silence 0.8 |> snare |> silence 0.5 |> snare |> silence 0.1 |>
-  silence 0.8 |> snare |> silence 0.7 |>
-  empty
+  inBars 1.6 $
+    silence 0.8 |> snare :
+    silence 0.8 |> snare :
+    silence 0.8 |> snare |> silence 0.5 |> snare :
+    silence 0.8 |> snare :
+    silence 0.8 |> snare :
+    silence 0.8 |> snare |> silence 0.3 |> snare :
+    silence 0.8 |> snare |> silence 0.5 |> snare :
+    silence 0.6 |> snare |> silence 0.5 |> snare :
+    []
+
+inBars length signals = foldl' (|>) empty $ map (fill length) signals
 
 snare =
   random (-1, 1)
     & take 0.1
     & fmap (* 0.2)
+
+bass =
+  inBars 3.2 $
+    fill 3 (n 50) |> n 25 :
+    n 50 :
+    fill 3 (n 50) |> n 25 :
+    n 50 |> n 25 |> n 50 :
+    []
+  where
+    n frequency = take 0.2 $ speedup (constant frequency) saw
