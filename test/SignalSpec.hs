@@ -111,3 +111,12 @@ spec = do
     it "inserts silence, when the shift value is positive" $ do
       let signal = shift 0.2 $ take 0.5 saw
       test 0.1 10 signal [0, 0, -1, -0.8, -0.6, -0.4, -0.2, 0]
+
+  describe "ramp" $ do
+    it "allows to specify a ramp" $ do
+      let signal = ramp 1 0.3 1.3
+      test 0.1 2 signal [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2 :: Double]
+
+    it "allows to specify a ramp with negative slope" $ do
+      let signal = ramp 1 1.3 0.3
+      test 0.1 2 signal [1.3, 1.2, 1.1, 1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3 :: Double]

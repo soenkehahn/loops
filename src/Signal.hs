@@ -101,9 +101,23 @@ fill length signal = take length (signal |> constant 0)
 saw :: Signal Double
 saw = fmap (project (0, tau) (-1, 1)) phase
 
+sine :: Signal Double
+sine = fmap sin phase
+
 shift :: (Show a, Num a) => Double -> Signal a -> Signal a
 shift length signal = if length < 0
   then Signal $ \ delta ->
     case runSignal signal (- length) of
       Just (_, next) -> runSignal next delta
   else silence length |> signal
+
+ramp :: Double -> Double -> Double -> Signal Double
+ramp length start end = stateful start $ \ delta state ->
+  if reached state
+    then Nothing
+    else Just (state, state + delta * (end - start))
+  where
+    reached state =
+      if start < end
+        then state >= end
+        else state <= end

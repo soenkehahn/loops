@@ -10,6 +10,7 @@ main = do
 
 loop :: Signal Double
 loop = -- speedup (constant 1.0)
+  -- take 1.6 $
     part 1 |>
     part (4 / 3) |>
     part 1 |>
@@ -59,4 +60,4 @@ bass base =
     n 50 |> n 25 |> n 50 :
     []
   where
-    n frequency = take 0.2 $ speedup (constant (base * frequency)) saw
+    n frequency = take 0.2 $ speedup (constant (base * frequency) +++ ramp 0.3 0 (-20)) saw
