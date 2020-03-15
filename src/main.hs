@@ -1,21 +1,23 @@
-
 import Signal
 import Prelude ()
 import Data.Function
 import Data.List (foldl')
+import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString.Lazy.Char8 as BS
+import Data.String.Conversions
 
 main :: IO ()
 main = do
-  putStr $ unlines $ map show $ toList (1 / 44100) $ take 100 loop
+  BS.putStr $ BS.unlines $ map (cs . show) $ toList (1 / 44100) $ take 100 loop
 
 loop :: Signal Double
 loop =
   -- take 1.6 $
     part 1 |>
     part (4 / 3) |>
-    part 1 |>
+    -- part 1 |>
     -- part (3 / 2) |>
-    take 0.6 (part 1) |>
+    -- take 0.6 (part 1) |>
     empty
   where
     part base = arps base +++ snares +++ bass base

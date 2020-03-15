@@ -7,6 +7,8 @@ ghc-options:
 dependencies:
   - base
   - random
+  - bytestring
+  - string-conversions
 
 executables:
   loop:
