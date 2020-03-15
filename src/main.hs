@@ -8,7 +8,8 @@ main = do
   putStr $ unlines $ map show $ toList (1 / 44100) $ take 1 loop
 
 loop :: Signal Double
-loop = do
-  let lfo = fmap sin phase
-        & fmap (project (-1, 1) (430, 450))
-  speedup lfo $ fmap sin phase
+loop =
+  note 200 |> note 400
+
+note :: Double -> Signal Double
+note frequency = take 0.2 $ speedup (constant frequency) $ fmap sin phase

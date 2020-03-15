@@ -6,9 +6,9 @@ import Prelude hiding (take)
 
 shouldYield :: (Show a, Eq a) => Signal a -> [a] -> IO ()
 shouldYield signal expected = do
-  test 0.5 1 signal expected
+  test 0.5 1.5 signal expected
 
-test :: (Show a, Eq a) => Double -> Double -> Signal a -> [a] -> IO ()
+test :: (HasCallStack, Show a, Eq a) => Double -> Double -> Signal a -> [a] -> IO ()
 test delta length signal expected =
   toList delta (take length signal) `shouldBe` expected
 
@@ -27,7 +27,7 @@ spec = do
       phase `shouldYield` [0, tau / 2, 0]
 
     it "wraps around after one second" $ do
-      test 0.25 1.25 phase [0, tau / 4, tau / 2, 3 * tau / 4, 0, tau / 4]
+      test 0.25 1.5 phase [0, tau / 4, tau / 2, 3 * tau / 4, 0, tau / 4]
 
   describe "project" $ do
     it "converts values from one range to another" $ do
@@ -36,7 +36,7 @@ spec = do
 
   describe "speedup" $ do
     it "speeds up another signal" $ do
-      test 0.25 1 (speedup (constant 2) phase) [0, tau / 2, 0, tau / 2, 0]
+      test 0.25 1 (speedup (constant 2) phase) [0, tau / 2, 0, tau / 2]
 
   describe "applicative interface" $ do
     it "<*> and <$> work" $ do
@@ -47,3 +47,8 @@ spec = do
     let lfo = fmap (project (-1, 1) (300, 400) . sin) phase
         signal = speedup lfo $ fmap sin phase
     signal `shouldYield` [0.0, -2.1561211432632476e-14, -2.1561211432632476e-14]
+
+  describe "|>" $ do
+    it "allows to sequentialize signals" $ do
+      let signal = take 0.5 (constant 23) |> take 0.5 (constant 42)
+      test 0.25 3 signal [23, 23, 42, 42]

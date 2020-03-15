@@ -36,10 +36,11 @@ constant a = Signal $ \ delta -> Just (a, (constant a))
 
 take :: Double -> Signal a -> Signal a
 take length (Signal signal) =
-  if length < 0
+  if length <= 0
     then Signal $ \ delta -> Nothing
     else Signal $ \ delta -> case signal delta of
       Just (sample, next) -> Just (sample, (take (length - delta) next))
+      Nothing -> Nothing
 
 fromList :: [a] -> Signal a
 fromList list = stateful list $ \ delta list -> case list of
@@ -66,3 +67,8 @@ speedup factorSignal inputSignal = Signal $ \ delta -> do
   (factor, nextFactorSignal) <- runSignal factorSignal delta
   (sample, nextInputSignal) <- runSignal inputSignal (factor * delta)
   return (sample, speedup nextFactorSignal nextInputSignal)
+
+(|>) :: Signal a -> Signal a -> Signal a
+a |> b = Signal $ \ delta -> case runSignal a delta of
+  Just (x, nextA) -> Just (x, nextA |> b)
+  Nothing -> runSignal b delta
