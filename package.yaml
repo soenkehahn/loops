@@ -8,7 +8,7 @@ dependencies:
   - base
   - random
   - bytestring
-  - string-conversions
+  - bytestring-conversion
 
 executables:
   loop:

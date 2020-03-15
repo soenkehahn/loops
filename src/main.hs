@@ -4,11 +4,11 @@ import Data.Function
 import Data.List (foldl')
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteString.Lazy.Char8 as BS
-import Data.String.Conversions
+import Data.ByteString.Conversion
 
 main :: IO ()
 main = do
-  BS.putStr $ BS.unlines $ map (cs . show) $ toList (1 / 44100) $ take 100 loop
+  BS.putStr $ BS.unlines $ map toByteString $ toList (1 / 44100) $ take 100 loop
 
 loop :: Signal Double
 loop =
