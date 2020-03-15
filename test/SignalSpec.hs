@@ -4,6 +4,7 @@ import Test.Hspec
 import Signal
 import Prelude ()
 import Test.HUnit (assertFailure)
+import Data.String.Conversions
 
 shouldYield :: (Show a, Epsilon a) => Signal a -> [a] -> IO ()
 shouldYield signal expected = do
@@ -45,6 +46,10 @@ spec = do
   describe "fromList" $ do
     it "converts a list into a signal" $ do
       fromList [1, 2, 3] `shouldYield` [1, 2, 3 :: Integer]
+
+  describe "toByteString" $ do
+    it "converts the numbers to a lazy ByteString, one per line" $ do
+      toByteString 1 (fromList [1, 2, 3 :: Double]) `shouldBe` cs "1\n2\n3\n"
 
   describe "phase" $ do
     it "ramps up to TAU in one second" $ do

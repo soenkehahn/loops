@@ -8,6 +8,10 @@ module Signal (
 import Prelude hiding (take, repeat)
 import System.Random
 import Data.Fixed
+import qualified Data.ByteString.Lazy as BS hiding (snoc)
+import qualified Data.ByteString.Lazy.Char8 as BS
+import qualified Data.ByteString.Conversion as BS
+import qualified Data.ByteString.Builder as Builder
 
 -- signal basics
 
@@ -32,6 +36,15 @@ toList :: Double -> Signal a -> [a]
 toList delta signal = case runSignal signal delta of
   Just (sample, next) -> sample : toList delta next
   Nothing -> []
+
+toByteString :: BS.ToByteString a => Double -> Signal a -> BS.ByteString
+toByteString delta signal = Builder.toLazyByteString $ inner signal
+  where
+    inner signal = case runSignal signal delta of
+      Just (sample, next) ->
+        Builder.lazyByteString (BS.toByteString sample) <> Builder.char7 '\n' <>
+        inner next
+      Nothing -> mempty
 
 constant :: a -> Signal a
 constant a = Signal $ \ delta -> Just (a, (constant a))
