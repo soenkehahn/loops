@@ -25,24 +25,24 @@ note :: Double -> Signal Double
 note frequency = take 0.2 $ speedup (constant frequency) $ fmap sin phase
 
 snares =
-  shift (- 0.03) $
+  -- shift (- 0.03) $
   inBars 1.6 $
     silence 0.8 |> snare :
     silence 0.8 |> snare :
     silence 0.8 |> snare |> silence 0.5 |> snare :
     silence 0.8 |> snare :
     silence 0.8 |> snare :
-    silence 0.8 |> snare |> silence 0.3 |> snare :
-    silence 0.8 |> snare |> silence 0.5 |> snare :
-    silence 0.6 |> snare |> silence 0.5 |> snare :
+    silence 0.8 |> fill 0.4 snare |> snare :
+    silence 0.8 |> fill 0.6 snare |> snare :
+    silence 0.6 |> fill 0.6 snare |> snare :
     []
 
 inBars length signals = foldl' (|>) empty $ map (fill length) signals
 
 snare =
   random (-1, 1)
-    & take 0.1
-    & fmap (* 0.2)
+    & take 0.06
+    & fmap (* 0.3)
 
 bass =
   inBars 3.2 $
