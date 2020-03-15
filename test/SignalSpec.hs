@@ -14,11 +14,11 @@ test delta length signal expected =
   toList delta (take length signal) `shouldBeCloseTo` expected
 
 shouldBeCloseTo :: (HasCallStack, Epsilon a, Show a) => a -> a -> IO ()
-shouldBeCloseTo a b =
-  if a ==== b
+shouldBeCloseTo got expected =
+  if got ==== expected
     then return ()
     else assertFailure $
-      "expected: " ++ show a ++ "\n but got: " ++ show b
+      "expected: " ++ show expected ++ "\n but got: " ++ show got
 
 class Epsilon a where
   (====) :: a -> a -> Bool
@@ -104,6 +104,10 @@ spec = do
       test 0.5 4 signal [42, 42, 0, 0 :: Integer]
 
   describe "shift" $ do
-    it "omits the beginning of the signal, if the shift value is negative" $ do
+    it "omits the beginning of the signal, when the shift value is negative" $ do
       let signal = shift (-0.2) $ take 1 saw
-      test 0.25 1 signal [-0.8, -0.3, 0.2, 0.7]
+      test 0.1 10 signal [-0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, -1]
+
+    it "inserts silence, when the shift value is positive" $ do
+      let signal = shift 0.2 $ take 0.5 saw
+      test 0.1 10 signal [0, 0, -1, -0.8, -0.6, -0.4, -0.2, 0]
