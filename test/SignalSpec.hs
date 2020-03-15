@@ -58,6 +58,10 @@ spec = do
     it "wraps around after one second" $ do
       test 0.25 1.5 phase [0, tau / 4, tau / 2, 3 * tau / 4, 0, tau / 4]
 
+  describe "rect" $ do
+    it "is a rectangle wave" $ do
+      test 0.25 1.5 rect [-1, -1, 1, 1, -1, -1]
+
   describe "project" $ do
     it "converts values from one range to another" $ do
       map (project (0, 100) (-1, 1)) [0, 50, 100]
@@ -144,7 +148,13 @@ spec = do
 
   describe "adsr" $ do
     it "allows to have a attack" $ do
-      test 0.1 2 (adsr 1 (Adsr 0.3 0) (constant 10)) [0, 10 / 3, 20 / 3, 10, 10, 10, 10, 10, 10, 10, 10]
+      test 0.1 2 (adsr 1 (Adsr 0.3 0 1 0) (constant 10)) [0, 10 / 3, 10 * 2 / 3, 10, 10, 10, 10, 10, 10, 10, 10]
 
     it "allows to have a release" $ do
-      test 0.1 2 (adsr 1 (Adsr 0 0.3) (constant 10)) [10, 10, 10, 10, 10, 10, 10, 10, 10, 20 / 3, 10 / 3]
+      test 0.1 2 (adsr 1 (Adsr 0 0 1 0.3) (constant 10)) [10, 10, 10, 10, 10, 10, 10, 10, 10, 10 * 2 / 3, 10 / 3]
+
+    it "allows to have decay and sustain" $ do
+      test 0.1 2 (adsr 1 (Adsr 0 0.2 0.5 0) (constant 10)) [10, 7.5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+
+    it "release ramp starts at sustain volume" $ do
+      test 0.1 2 (adsr 1 (Adsr 0 0.2 0.5 0.3) (constant 10)) [10, 7.5, 5, 5, 5, 5, 5, 5, 5, 5 * 2 / 3, 5 / 3]

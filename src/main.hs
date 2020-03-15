@@ -12,7 +12,20 @@ main = do
 
 loop :: Signal Double
 loop =
-  -- take 1.6 $
+  -- take 12.8 $
+    band +++
+    fmap (* 0.02) melody
+
+melody =
+  inBars 12.8 $
+    n 410 480 |> n 420 400 :
+    n 410 480 |> n 420 400 :
+    []
+  where
+    n start frequency = adsr 6.0 (Adsr 0.1 1 0.7 2.3) $
+      speedup (ramp 0.7 start frequency |> constant frequency) rect
+
+band =
   fmap (* 0.3) $
     part 1 |>
     part (4 / 3) |>
@@ -34,7 +47,7 @@ arp base frequencies =
   repeat 4 (foldl' (\ acc frequency -> acc |> note base frequency) empty frequencies)
 
 note :: Double -> Double -> Signal Double
-note base frequency = adsr 0.2 (Adsr 0.01 0.05) $ speedup (constant (base * frequency)) $ fmap sin phase
+note base frequency = adsr 0.2 (Adsr 0.01 0 1 0.05) $ speedup (constant (base * frequency)) $ fmap sin phase
 
 snares =
   -- shift (- 0.03) $

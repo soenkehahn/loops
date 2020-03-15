@@ -122,6 +122,9 @@ saw = fmap (project (0, tau) (-1, 1)) phase
 sine :: Signal Double
 sine = fmap sin phase
 
+rect :: Signal Double
+rect = fmap (\ x -> if x < tau / 2 then -1 else 1) phase
+
 shift :: (Show a, Num a) => Double -> Signal a -> Signal a
 shift length signal = if length < 0
   then Signal $ \ delta ->
@@ -144,14 +147,17 @@ ramp length start end = stateful start $ \ delta state ->
 
 data Adsr = Adsr {
   attack :: Double,
+  decay :: Double,
+  sustain :: Double,
   release :: Double
 }
 
 adsr :: Double -> Adsr -> Signal Double -> Signal Double
-adsr length (Adsr attack release) signal =
+adsr length (Adsr attack decay sustain release) signal =
   envelope /\ signal
   where
     envelope =
       ramp attack 0 1 |>
-      take (length - attack - release) (constant 1) |>
-      ramp release 1 0
+      ramp decay 1 sustain |>
+      take (length - attack - decay - release) (constant sustain) |>
+      ramp release sustain 0
