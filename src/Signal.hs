@@ -9,7 +9,6 @@ import Prelude hiding (take, repeat)
 import System.Random
 import Data.Fixed
 import qualified Data.ByteString.Lazy as BS hiding (snoc)
-import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.ByteString.Conversion as BS
 import qualified Data.ByteString.Builder as Builder
 
@@ -47,18 +46,18 @@ toByteString delta signal = Builder.toLazyByteString $ inner signal
       Nothing -> mempty
 
 constant :: a -> Signal a
-constant a = Signal $ \ delta -> Just (a, (constant a))
+constant a = Signal $ \ _delta -> Just (a, (constant a))
 
 take :: Double -> Signal a -> Signal a
 take length (Signal signal) =
   if length <= 0
-    then Signal $ \ delta -> Nothing
+    then Signal $ \ _delta -> Nothing
     else Signal $ \ delta -> case signal delta of
       Just (sample, next) -> Just (sample, (take (length - delta) next))
       Nothing -> Nothing
 
 fromList :: [a] -> Signal a
-fromList list = stateful list $ \ delta list -> case list of
+fromList list = stateful list $ \ _delta list -> case list of
   a : r -> Just (a, r)
   [] -> Nothing
 
@@ -122,13 +121,14 @@ shift length signal = if length < 0
   then Signal $ \ delta ->
     case runSignal signal (- length) of
       Just (_, next) -> runSignal next delta
+      Nothing -> Nothing
   else silence length |> signal
 
 ramp :: Double -> Double -> Double -> Signal Double
 ramp length start end = stateful start $ \ delta state ->
   if reached state
     then Nothing
-    else Just (state, state + delta * (end - start))
+    else Just (state, state + delta * (end - start) / length)
   where
     reached state =
       if start < end

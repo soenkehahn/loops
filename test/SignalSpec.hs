@@ -125,3 +125,7 @@ spec = do
     it "allows to specify a ramp with negative slope" $ do
       let signal = ramp 1 1.3 0.3
       test 0.1 2 signal [1.3, 1.2, 1.1, 1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3 :: Double]
+
+    it "allows to specify the length of the ramp" $ do
+      let signal = ramp 0.5 0.3 1.3
+      test 0.1 2 signal [0.3, 0.5, 0.7, 0.9, 1.1, 1.3 :: Double]

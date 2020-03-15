@@ -3,6 +3,8 @@ ghc-options:
   - -fdefer-typed-holes
   # - -fdefer-type-errors
   - -O1
+  - -Wall
+  - -Wno-name-shadowing
 
 dependencies:
   - base
