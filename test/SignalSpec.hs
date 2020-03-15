@@ -89,15 +89,15 @@ spec = do
   describe "+++" $ do
     it "adds two signals" $ do
       let signal = constant 23 +++ constant 42
-      test 1 3 signal [65, 65, 65 :: Integer]
+      test 1 3 signal [65, 65, 65 :: Double]
 
     it "keeps the first signal if the second stops" $ do
       let signal = constant 23 +++ take 1 (constant 42)
-      test 1 3 signal [65, 23, 23 :: Integer]
+      test 1 3 signal [65, 23, 23 :: Double]
 
     it "keeps the second signal if the first stops" $ do
       let signal = take 1 (constant 23) +++ constant 42
-      test 1 3 signal [65, 42, 42 :: Integer]
+      test 1 3 signal [65, 42, 42 :: Double]
 
   describe "silence" $ do
     it "returns silences of the given length" $ do

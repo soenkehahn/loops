@@ -1,9 +1,10 @@
+{-# OPTIONS_GHC -Wno-missing-signatures #-}
+
 import Signal
 import Prelude ()
 import Data.Function
 import Data.List (foldl')
 import qualified Data.ByteString.Lazy as BS
-import qualified Data.ByteString.Lazy.Char8 as BS
 
 main :: IO ()
 main = do
@@ -11,7 +12,7 @@ main = do
 
 loop :: Signal Double
 loop =
-  -- take 1.6 $
+  fmap (* 0.3) $
     part 1 |>
     part (4 / 3) |>
     -- part 1 |>
