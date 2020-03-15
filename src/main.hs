@@ -13,8 +13,12 @@ main = do
 loop :: Signal Double
 loop =
   -- take 12.8 $
-    band +++
-    fmap (* 0.02) melody
+    song |>
+    (ramp 3 1 0 /\ song)
+  where
+    song =
+      band +++
+      fmap (* 0.02) melody
 
 melody =
   inBars 12.8 $
@@ -31,7 +35,7 @@ band =
     part (4 / 3) |>
     -- part 1 |>
     -- part (3 / 2) |>
-    -- take 0.6 (part 1) |>
+    -- part 1 |>
     empty
   where
     part base = arps base +++ snares +++ bass base
