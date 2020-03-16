@@ -43,9 +43,10 @@ band =
     arps +++ snares +++ (bass 1 |> bass (4 / 3))
 
 arps =
-  part 1 |>
-  part (4 / 3) |>
-  empty
+  echo 0.31 0.5 $
+    part 1 |>
+    part (4 / 3) |>
+    empty
   where
     part base =
       arp base [200, 400, 300, 250] |>
@@ -58,7 +59,7 @@ arp base frequencies =
   repeat 4 (foldl' (\ acc frequency -> acc |> note base frequency) empty frequencies)
 
 note :: Double -> Double -> Signal Double
-note base frequency = adsr (beat / 4) (Adsr 0.01 0 1 0.05) $ speedup (constant (base * frequency)) $ fmap sin phase
+note base frequency = adsr (beat / 4) (Adsr 0.001 0.1 0.3 0.05) $ speedup (constant (base * frequency)) $ fmap sin phase
 
 snares =
   echo 0.1 0.2 $
