@@ -10,9 +10,13 @@ main :: IO ()
 main = do
   BS.putStr $ toByteString (1 / 44100) $ take 100 loop
 
+bar = 3.2
+
+beat = bar / 4
+
 loop :: Signal Double
 loop =
-  -- take 12.8 $
+  -- take bar $
     song |>
     (ramp 3 1 0 /\ song)
   where
@@ -21,7 +25,7 @@ loop =
       fmap (* 0.02) melody
 
 melody =
-  inBars 12.8 $
+  inBars (bar * 4) $
     n 410 480 |> n 420 400 :
     n 410 480 |> n 420 400 :
     []
@@ -51,11 +55,11 @@ arp base frequencies =
   repeat 4 (foldl' (\ acc frequency -> acc |> note base frequency) empty frequencies)
 
 note :: Double -> Double -> Signal Double
-note base frequency = adsr 0.2 (Adsr 0.01 0 1 0.05) $ speedup (constant (base * frequency)) $ fmap sin phase
+note base frequency = adsr (beat / 4) (Adsr 0.01 0 1 0.05) $ speedup (constant (base * frequency)) $ fmap sin phase
 
 snares =
   -- shift (- 0.03) $
-  inBars 1.6 $
+  inBars (2 * beat) $
     silence 0.8 |> snare :
     silence 0.8 |> snare :
     silence 0.8 |> snare |> silence 0.5 |> snare :
@@ -75,11 +79,11 @@ snare =
 
 bass base =
   shift (- 0.02) $
-  inBars 3.2 $
+  inBars bar $
     fill 3 (n 50) |> n 25 :
     n 50 :
     fill 3 (n 50) |> n 25 :
     n 50 |> n 25 |> n 50 :
     []
   where
-    n frequency = take 0.2 $ speedup (constant (base * frequency) +++ ramp 0.3 0 (-20)) saw
+    n frequency = take (beat / 4) $ speedup (constant (base * frequency) +++ ramp 0.3 0 (-20)) saw
