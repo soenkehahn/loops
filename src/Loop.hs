@@ -19,7 +19,7 @@ beat = bar / 4
 
 loop :: Signal Double
 loop =
-  -- take bar $
+  -- take (bar * 2) $
     song |>
     -- (ramp (bar * 4) 1 0 /\ song) |>
     empty
@@ -62,7 +62,7 @@ note :: Double -> Double -> Signal Double
 note base frequency = adsr (beat / 4) (Adsr 0.001 0.1 0.3 0.05) $ speedup (constant (base * frequency)) $ fmap sin phase
 
 snares =
-  echo 0.1 0.2 $
+  echo 0.105 0.05 $
   inBars (2 * beat) $
     silence 0.8 |> snare :
     silence 0.8 |> snare :
@@ -86,7 +86,7 @@ inBars length signals = foldl' (|>) empty $ map (fill length) signals
 
 snare =
   random (-1, 1)
-    & take 0.06
+    & adsr 0.06 (Adsr 0.01 0.05 0.2 0.01)
     & fmap (* 0.3)
 
 bass base =
@@ -99,7 +99,7 @@ bass base =
     []
   where
     n frequency =
-      adsr (beat / 4) (Adsr 0.01 ((beat / 4) - 0.01) 0 0) $
+      adsr (beat / 4) (Adsr 0.03 ((beat / 4) - 0.03) 0 0) $
       speedup (constant (base * frequency) +++ (take (beat / 8) (constant 0) |> ramp (beat / 8) 0 (-7))) $
       fmap (clip (-1, 1) . (* 10)) $
       sine
