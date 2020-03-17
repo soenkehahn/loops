@@ -79,6 +79,9 @@ project :: (Double, Double) -> (Double, Double) -> Double -> Double
 project (fromLow, fromHigh) (toLow, toHigh) x =
   (((x - fromLow) / (fromHigh - fromLow)) * (toHigh - toLow)) + toLow
 
+clip :: (Double, Double) -> Double -> Double
+clip (lower, upper) x = max lower (min upper x)
+
 speedup :: Signal Double -> Signal a -> Signal a
 speedup factorSignal inputSignal = Signal $ \ delta -> do
   (factor, nextFactorSignal) <- runSignal factorSignal delta

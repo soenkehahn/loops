@@ -21,7 +21,7 @@ loop :: Signal Double
 loop =
   -- take bar $
     song |>
-    -- (ramp 3 1 0 /\ song) |>
+    -- (ramp (bar * 4) 1 0 /\ song) |>
     empty
   where
     song =
@@ -98,4 +98,8 @@ bass base =
     n 50 |> n 25 |> n 50 :
     []
   where
-    n frequency = take (beat / 4) $ speedup (constant (base * frequency) +++ ramp 0.3 0 (-20)) saw
+    n frequency =
+      adsr (beat / 4) (Adsr 0.01 ((beat / 4) - 0.01) 0 0) $
+      speedup (constant (base * frequency) +++ (take (beat / 8) (constant 0) |> ramp (beat / 8) 0 (-7))) $
+      fmap (clip (-1, 1) . (* 10)) $
+      sine

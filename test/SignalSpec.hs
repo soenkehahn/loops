@@ -132,3 +132,13 @@ spec = do
 
     it "release ramp starts at sustain volume" $ do
       test 0.1 2 (adsr 1 (Adsr 0 0.2 0.5 0.3) (constant 10)) [10, 7.5, 5, 5, 5, 5, 5, 5, 5, 5 * 2 / 3, 5 / 3]
+
+  describe "clip" $ do
+    it "limits the signal at teh upper limit" $ do
+      clip (0, 5) 7 `shouldBe` 5
+
+    it "limits the signal at the lower limit" $ do
+      clip (0, 5) (-1) `shouldBe` 0
+
+    it "passes the signal through when within limits" $ do
+      clip (0, 5) 3 `shouldBe` 3
