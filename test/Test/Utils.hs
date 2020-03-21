@@ -4,6 +4,7 @@ import Prelude ()
 import Signal
 import Test.Hspec
 import Test.HUnit (assertFailure)
+import qualified Data.Vector as Vec
 
 test :: (HasCallStack, Epsilon a, Show a) => Double -> Double -> Signal a -> [a] -> IO ()
 test delta length signal expected =
@@ -25,6 +26,9 @@ instance Epsilon a => Epsilon [a] where
       if a ==== b then ar ==== br else False
     ([], []) -> True
     _ -> False
+
+instance Epsilon a => Epsilon (Vec.Vector a) where
+  as ==== bs = Vec.toList as ==== Vec.toList bs
 
 instance Epsilon Double where
   a ==== b = abs (a - b) < 0.000000001

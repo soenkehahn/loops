@@ -6,6 +6,7 @@ import Signal
 import Prelude ()
 import Data.String.Conversions
 import Test.Utils
+import qualified Data.Vector as Vec
 
 shouldYield :: (Show a, Epsilon a) => Signal a -> [a] -> IO ()
 shouldYield signal expected = do
@@ -13,17 +14,22 @@ shouldYield signal expected = do
 
 spec :: Spec
 spec = do
+  describe "fromList" $ do
+    it "converts a list into a signal" $ do
+      fromList 0.5 [1, 2, 3] `shouldYield` [1, 2, 3 :: Integer]
+
+  describe "toByteString" $ do
+    it "converts the numbers to a lazy ByteString, one per line" $ do
+      toByteString 1 (fromList 1 [1, 2, 3 :: Double]) `shouldBe` cs "1\n2\n3\n"
+
   describe "take" $ do
     it "takes samples for the given amount of time" $ do
       constant 42 `shouldYield` [42, 42, 42 :: Integer]
 
-  describe "fromList" $ do
-    it "converts a list into a signal" $ do
-      fromList [1, 2, 3] `shouldYield` [1, 2, 3 :: Integer]
-
-  describe "toByteString" $ do
-    it "converts the numbers to a lazy ByteString, one per line" $ do
-      toByteString 1 (fromList [1, 2, 3 :: Double]) `shouldBe` cs "1\n2\n3\n"
+  describe "skip" $ do
+    it "skips the first part of a signal" $ do
+      let signal = skip 0.2 $ ramp 1 0 1
+      test 0.1 2 signal [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
   describe "phase" $ do
     it "ramps up to TAU in one second" $ do
@@ -44,6 +50,15 @@ spec = do
   describe "speedup" $ do
     it "speeds up another signal" $ do
       test 0.25 1 (speedup (constant 2) phase) [0, tau / 2, 0, tau / 2]
+
+  describe "integral" $ do
+    it "computes the integral with a constant of 0" $ do
+      integral (Vec.fromList [(0, 0), (1, 3), (2, 5), (3, 7)]) `shouldBe`
+        Vec.fromList [0, 3, 8, 15 :: Double]
+
+    it "takes smaller time deltas into account" $ do
+      integral (Vec.fromList [(0, 0), (0.1, 3), (0.3, 5), (1, 7)]) `shouldBeCloseTo`
+        Vec.fromList [0, 0.3, 1.3, 6.2 :: Double]
 
   describe "applicative interface" $ do
     it "<*> and <$> work" $ do
@@ -98,15 +113,6 @@ spec = do
       let signal = fill 2 (take 1 (constant 42))
       test 0.5 4 signal [42, 42, 0, 0 :: Integer]
 
-  describe "shift" $ do
-    it "omits the beginning of the signal, when the shift value is negative" $ do
-      let signal = shift (-0.2) $ take 1 saw
-      test 0.1 10 signal [-0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, -1]
-
-    it "inserts silence, when the shift value is positive" $ do
-      let signal = shift 0.2 $ take 0.5 saw
-      test 0.1 10 signal [0, 0, -1, -0.8, -0.6, -0.4, -0.2, 0]
-
   describe "ramp" $ do
     it "allows to specify a ramp" $ do
       let signal = ramp 1 0.3 1.3
@@ -114,27 +120,27 @@ spec = do
 
     it "allows to specify a ramp with negative slope" $ do
       let signal = ramp 1 1.3 0.3
-      test 0.1 2 signal [1.3, 1.2, 1.1, 1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3 :: Double]
+      test 0.1 2 signal [1.3, 1.2, 1.1, 1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4 :: Double]
 
     it "allows to specify the length of the ramp" $ do
       let signal = ramp 0.5 0.3 1.3
-      test 0.1 2 signal [0.3, 0.5, 0.7, 0.9, 1.1, 1.3 :: Double]
+      test 0.1 2 signal [0.3, 0.5, 0.7, 0.9, 1.1:: Double]
 
   describe "adsr" $ do
     it "allows to have a attack" $ do
-      test 0.1 2 (adsr 1 (Adsr 0.3 0 1 0) (constant 10)) [0, 10 / 3, 10 * 2 / 3, 10, 10, 10, 10, 10, 10, 10, 10]
+      test 0.1 2 (adsr 1 (Adsr 0.3 0 1 0) (constant 10)) [0, 10 / 3, 10 * 2 / 3, 10, 10, 10, 10, 10, 10, 10]
 
     it "allows to have a release" $ do
-      test 0.1 2 (adsr 1 (Adsr 0 0 1 0.3) (constant 10)) [10, 10, 10, 10, 10, 10, 10, 10, 10, 10 * 2 / 3, 10 / 3]
+      test 0.1 2 (adsr 1 (Adsr 0 0 1 0.3) (constant 10)) [10, 10, 10, 10, 10, 10, 10, 10, 10 * 2 / 3, 10 / 3]
 
     it "allows to have decay and sustain" $ do
-      test 0.1 2 (adsr 1 (Adsr 0 0.2 0.5 0) (constant 10)) [10, 7.5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+      test 0.1 2 (adsr 1 (Adsr 0 0.2 0.5 0) (constant 10)) [10, 7.5, 5, 5, 5, 5, 5, 5, 5, 5]
 
     it "release ramp starts at sustain volume" $ do
-      test 0.1 2 (adsr 1 (Adsr 0 0.2 0.5 0.3) (constant 10)) [10, 7.5, 5, 5, 5, 5, 5, 5, 5, 5 * 2 / 3, 5 / 3]
+      test 0.1 2 (adsr 1 (Adsr 0 0.2 0.5 0.3) (constant 10)) [10, 7.5, 5, 5, 5, 5, 5, 5, 5 * 2 / 3, 5 / 3]
 
   describe "clip" $ do
-    it "limits the signal at teh upper limit" $ do
+    it "limits the signal at the upper limit" $ do
       clip (0, 5) 7 `shouldBe` 5
 
     it "limits the signal at the lower limit" $ do

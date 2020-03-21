@@ -19,6 +19,9 @@ beat = bar / 4
 
 loop :: Signal Double
 loop =
+  take (2 * bar) $
+  skip (2 * bar) $
+  fmap (* 0.1) $
   -- take (bar * 2) $
     song |>
     -- (ramp (bar * 4) 1 0 /\ song) |>
@@ -90,7 +93,7 @@ snare =
     & fmap (* 0.3)
 
 bass base =
-  shift (- 0.02) $
+  skip 0.02 $
   inBars bar $
     fill 3 (n 50) |> n 25 :
     n 50 :
@@ -101,5 +104,5 @@ bass base =
     n frequency =
       adsr (beat / 4) (Adsr 0.03 ((beat / 4) - 0.03) 0 0) $
       speedup (constant (base * frequency) +++ (take (beat / 8) (constant 0) |> ramp (beat / 8) 0 (-7))) $
-      fmap (clip (-1, 1) . (* 10)) $
-      sine
+      fmap (clip (-1, 1) . (* 50)) $
+      saw

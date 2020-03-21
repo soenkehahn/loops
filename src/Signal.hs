@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Signal (
   module Prelude,
@@ -6,66 +7,99 @@ module Signal (
 ) where
 
 import Prelude hiding (take, repeat)
+import Control.Monad.Trans.State.Strict
 import System.Random
 import Data.Fixed
 import qualified Data.ByteString.Lazy as BS hiding (snoc)
 import qualified Data.ByteString.Conversion as BS
 import qualified Data.ByteString.Builder as Builder
+import Data.Vector (Vector, (!?))
+import qualified Data.Vector as Vec
 
 -- signal basics
 
 data Signal a = Signal {
-  runSignal :: Double -> Maybe (a, Signal a)
+  end :: Maybe Double,
+  runSignal :: Vector Double -> Vector a
 } deriving (Functor)
 
-stateful :: state -> (Double -> state -> Maybe (a, state)) -> Signal a
-stateful current f = Signal $ \ delta ->
-  case f delta current of
-    Just (a, nextState) -> Just (a, (stateful nextState f))
-    Nothing -> Nothing
+minEnd :: Signal a -> Signal b -> Maybe Double
+minEnd a b = case (end a, end b) of
+  (Just a, Just b) -> Just $ min a b
+  (Just a, Nothing) -> Just a
+  (Nothing, Just b) -> Just b
+  (Nothing, Nothing) -> Nothing
+
+maxEnd :: Signal a -> Signal b -> Maybe Double
+maxEnd a b = case (end a, end b) of
+  (Just a, Just b) -> Just $ max a b
+  (_, Nothing) -> Nothing
+  (Nothing, _) -> Nothing
 
 instance Applicative Signal where
   pure = constant
-  fSignal <*> xSignal = Signal $ \ delta -> do
-    (f, nextFSignal) <- runSignal fSignal delta
-    (x, nextXSignal) <- runSignal xSignal delta
-    return (f x, nextFSignal <*> nextXSignal)
+  fSignal <*> xSignal =
+    Signal (minEnd fSignal xSignal) $ \ times ->
+      let fs = runSignal fSignal times
+          xs = runSignal xSignal times
+      in Vec.zipWith ($) fs xs
 
 toList :: Double -> Signal a -> [a]
-toList delta signal = case runSignal signal delta of
-  Just (sample, next) -> sample : toList delta next
-  Nothing -> []
-
-toByteString :: BS.ToByteString a => Double -> Signal a -> BS.ByteString
-toByteString delta signal = Builder.toLazyByteString $ inner signal
+toList delta signal =
+  Vec.toList $
+  runSignal signal $
+  Vec.fromList $
+  deltas
   where
-    inner signal = case runSignal signal delta of
-      Just (sample, next) ->
+    deltas = case end signal of
+      Just end -> takeWhile (< end) [0, delta ..]
+      Nothing -> [0, delta ..]
+
+toByteString :: forall a . BS.ToByteString a => Double -> Signal a -> BS.ByteString
+toByteString delta signal = Builder.toLazyByteString $ inner $ toList delta signal
+  where
+    inner :: [a] -> Builder.Builder
+    inner samples = case samples of
+      sample : r ->
         Builder.lazyByteString (BS.toByteString sample) <> Builder.char7 '\n' <>
-        inner next
-      Nothing -> mempty
+        inner r
+      [] -> mempty
 
 constant :: a -> Signal a
-constant a = Signal $ \ _delta -> Just (a, (constant a))
+constant a = Signal Nothing $ fmap $ const a
 
 take :: Double -> Signal a -> Signal a
-take length (Signal signal) =
-  if length <= 0
-    then Signal $ \ _delta -> Nothing
-    else Signal $ \ delta -> case signal delta of
-      Just (sample, next) -> Just (sample, (take (length - delta) next))
-      Nothing -> Nothing
+take length signal = Signal end' (runSignal signal)
+  where
+    end' = Just $ case end signal of
+      Nothing -> length
+      Just e -> min e length
 
-fromList :: [a] -> Signal a
-fromList list = stateful list $ \ _delta list -> case list of
-  a : r -> Just (a, r)
-  [] -> Nothing
+skip :: Double -> Signal a -> Signal a
+skip length signal =
+  let e = case end signal of
+        Just signalEnd -> Just $ max 0 (signalEnd - length)
+        Nothing -> Nothing
+  in Signal e $ \ times -> runSignal signal $ fmap (+ length) times
 
-random :: Random a => (a, a) -> Signal a
-random bounds = fromList $ randomRs bounds (mkStdGen 42)
+fromList :: Double -> [a] -> Signal a
+fromList delta list =
+  Signal
+    (Just $ fromIntegral (length list) * delta)
+    (fmap $ \ time -> list !! floor (time / delta))
+
+random :: forall a . Random a => (a, a) -> Signal a
+random bounds = Signal Nothing $ \ times -> evalState (mapM inner times) (mkStdGen 42)
+  where
+    inner :: Double -> State StdGen a
+    inner _ = do
+      gen <- get
+      let (a, newGen) = randomR bounds gen
+      put newGen
+      return a
 
 empty :: Signal a
-empty = Signal $ \ _delta -> Nothing
+empty = Signal (Just 0) (fmap (\ _time -> error "empty: shouldn't be called"))
 
 -- audio signals
 
@@ -73,7 +107,7 @@ tau :: Double
 tau = pi * 2
 
 phase :: Signal Double
-phase = stateful 0 $ \ delta phase -> Just (phase, (phase + delta * tau) `mod'` tau)
+phase = Signal Nothing $ fmap $ \ time -> (time `mod'` 1) * tau
 
 project :: (Double, Double) -> (Double, Double) -> Double -> Double
 project (fromLow, fromHigh) (toLow, toHigh) x =
@@ -82,16 +116,40 @@ project (fromLow, fromHigh) (toLow, toHigh) x =
 clip :: (Double, Double) -> Double -> Double
 clip (lower, upper) x = max lower (min upper x)
 
-speedup :: Signal Double -> Signal a -> Signal a
-speedup factorSignal inputSignal = Signal $ \ delta -> do
-  (factor, nextFactorSignal) <- runSignal factorSignal delta
-  (sample, nextInputSignal) <- runSignal inputSignal (factor * delta)
-  return (sample, speedup nextFactorSignal nextInputSignal)
+speedup :: forall a . Signal Double -> Signal a -> Signal a
+speedup factorSignal (Signal Nothing inputSignal) =
+  Signal (end factorSignal) $ \ times ->
+    inner (integral $ Vec.zip times (runSignal factorSignal times))
+  where
+    inner :: Vector Double -> Vector a
+    inner = inputSignal
+speedup _ (Signal (Just _) _) = error "speedup not supported for finite input signals"
+
+integral :: Vector (Double, Double) -> Vector Double
+integral foo = evalState (mapM inner foo) (Nothing, 0)
+  where
+    inner :: (Double, Double) -> State (Maybe Double, Double) Double
+    inner (time, factor) = do
+      (oldTime, current) <- get
+      case oldTime of
+        Nothing -> do
+          put (Just time, current)
+          return current
+        Just oldTime -> do
+          let new = current + ((time - oldTime) * factor)
+          put (Just time, new)
+          return new
 
 (|>) :: Signal a -> Signal a -> Signal a
-a |> b = Signal $ \ delta -> case runSignal a delta of
-  Just (x, nextA) -> Just (x, nextA |> b)
-  Nothing -> runSignal b delta
+a |> b = case end a of
+  Nothing -> a
+  Just aEnd ->
+    let e = case end b of
+          Nothing -> Nothing
+          Just e -> Just (aEnd + e)
+    in Signal e $ \ times ->
+      let (forA, forB) = Vec.span (< aEnd) times
+      in runSignal a forA <> runSignal b (fmap (subtract aEnd) forB)
 
 repeat :: Integer -> Signal a -> Signal a
 repeat n signal =
@@ -100,18 +158,24 @@ repeat n signal =
     else signal |> repeat (n - 1) signal
 
 (+++) :: Num a => Signal a -> Signal a -> Signal a
-a +++ b = Signal $ \ delta -> do
-  case (runSignal a delta, runSignal b delta) of
-    (Just (x, nextA), Just (y, nextB)) -> Just (x + y, nextA +++ nextB)
-    (Just (x, nextA), Nothing) -> Just (x, nextA)
-    (Nothing, Just (y, nextB)) -> Just (y, nextB)
-    (Nothing, Nothing) -> Nothing
+a +++ b =
+  Signal (maxEnd a b) $ \ times ->
+    let as = runSignal a $ maybe times (\ end -> Vec.takeWhile (< end) times) (end a)
+        bs = runSignal b $ maybe times (\ end -> Vec.takeWhile (< end) times) (end b)
+    in zipWithOverlapping (+) as bs
+
+zipWithOverlapping :: (a -> a -> a) -> Vector a -> Vector a -> Vector a
+zipWithOverlapping f as bs =
+  Vec.generate (max (length as) (length bs)) $ \ i ->
+    case (as !? i, bs !? i) of
+      (Just a, Just b) -> f a b
+      (Just a, Nothing) -> a
+      (Nothing, Just b) -> b
+      (Nothing, Nothing) -> error "zipWithOverlapping: shouldn't happen"
 
 (/\) :: Num a => Signal a -> Signal a -> Signal a
-a /\ b = Signal $ \ delta -> do
-  case (runSignal a delta, runSignal b delta) of
-    (Just (x, nextA), Just (y, nextB)) -> Just (x * y, nextA /\ nextB)
-    _ -> Nothing
+a /\ b = Signal (minEnd a b) $ \ times ->
+  Vec.zipWith (*) (runSignal a times) (runSignal b times)
 
 silence :: Num a => Double -> Signal a
 silence length = take length (constant 0)
@@ -128,25 +192,11 @@ sine = fmap sin phase
 rect :: Signal Double
 rect = fmap (\ x -> if x < tau / 2 then -1 else 1) phase
 
-shift :: (Show a, Num a) => Double -> Signal a -> Signal a
-shift length signal = if length < 0
-  then Signal $ \ delta ->
-    case runSignal signal (- length) of
-      Just (_, next) -> runSignal next delta
-      Nothing -> Nothing
-  else silence length |> signal
-
 ramp :: Double -> Double -> Double -> Signal Double
 ramp 0 _ _ = empty
-ramp length start end = stateful start $ \ delta state ->
-  if reached state
-    then Nothing
-    else Just (state, state + delta * (end - start) / length)
-  where
-    reached state =
-      if start < end
-        then state >= end
-        else state <= end
+ramp length start end =
+  Signal (Just length) $ fmap $ \ time ->
+    (time / length) * (end - start) + start
 
 data Adsr = Adsr {
   attack :: Double,
