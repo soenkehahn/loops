@@ -1,14 +1,14 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Signal (
   module Prelude,
   module Signal,
 ) where
 
-import Control.Monad.Trans.State.Strict
 import Data.Fixed
-import Data.Vector (Vector, (!?))
+import Data.Vector (Vector, (!), (!?))
 import Epsilon
 import Prelude hiding (take, repeat)
 import qualified Data.ByteString.Builder as Builder
@@ -57,47 +57,38 @@ toVector delta signal =
       Nothing -> error "toVector: infinite signals are not supported"
 
 toByteString :: forall a . BS.ToByteString a => Double -> Signal a -> BS.ByteString
-toByteString delta signal = Builder.toLazyByteString $ inner $ Vec.toList $ toVector delta signal
+toByteString delta signal = Builder.toLazyByteString $ Vec.foldl' inner mempty $ toVector delta signal
   where
-    inner :: [a] -> Builder.Builder
-    inner samples = case samples of
-      sample : r ->
-        Builder.lazyByteString (BS.toByteString sample) <> Builder.char7 '\n' <>
-        inner r
-      [] -> mempty
+    inner :: Builder.Builder -> a -> Builder.Builder
+    inner acc sample =
+      acc <> Builder.lazyByteString (BS.toByteString sample) <> Builder.char7 '\n'
 
 constant :: a -> Signal a
-constant a = Signal Nothing $ fmap $ const a
+constant a = Signal Nothing $ \ times -> fmap (const a) times
 
 take :: Double -> Signal a -> Signal a
-take length signal = Signal end' (runSignal signal)
+take length (Signal mEnd signal) = Signal end' signal
   where
-    end' = Just $ case end signal of
+    end' = Just $ case mEnd of
       Nothing -> length
-      Just e -> min e length
+      Just end -> min end length
 
 skip :: Double -> Signal a -> Signal a
-skip length signal =
-  let e = case end signal of
-        Just signalEnd -> Just $ max 0 (signalEnd - length)
-        Nothing -> Nothing
-  in Signal e $ \ times -> runSignal signal $ fmap (+ length) times
+skip length (Signal end signal) =
+  Signal
+    (fmap (\ signalEnd -> max 0 (signalEnd - length)) end)
+    (\ times -> signal $ fmap (+ length) times)
 
 fromList :: Double -> [a] -> Signal a
-fromList delta list =
+fromList delta (Vec.fromList -> vec) =
   Signal
-    (Just $ fromIntegral (length list) * delta)
-    (fmap $ \ time -> list !! floor (time / delta))
+    (Just $ fromIntegral (length vec) * delta)
+    (fmap $ \ time -> vec ! floor (time / delta))
 
 random :: forall a . Random a => (a, a) -> Signal a
-random bounds = Signal Nothing $ \ times -> evalState (mapM inner times) (mkStdGen 42)
-  where
-    inner :: Double -> State StdGen a
-    inner _ = do
-      gen <- get
-      let (a, newGen) = randomR bounds gen
-      put newGen
-      return a
+random bounds =
+  Signal Nothing $ \ times ->
+    Vec.unfoldrN (Vec.length times) (\ gen -> Just (randomR bounds gen)) (mkStdGen 42)
 
 empty :: Signal a
 empty = Signal (Just 0) (fmap (\ _time -> error "empty: shouldn't be called"))
@@ -118,39 +109,31 @@ clip :: (Double, Double) -> Double -> Double
 clip (lower, upper) x = max lower (min upper x)
 
 speedup :: forall a . Signal Double -> Signal a -> Signal a
-speedup factorSignal (Signal Nothing inputSignal) =
-  Signal (end factorSignal) $ \ times ->
-    inner (integral $ Vec.zip times (runSignal factorSignal times))
-  where
-    inner :: Vector Double -> Vector a
-    inner = inputSignal
-speedup _ (Signal (Just _) _) = error "speedup not supported for finite input signals"
+speedup factorSignal inputSignal = case end inputSignal of
+  Nothing -> Signal (end factorSignal) $ \ times ->
+    runSignal inputSignal (integral times (runSignal factorSignal times))
+  Just _ -> error "speedup not supported for finite input signals"
 
-integral :: Vector (Double, Double) -> Vector Double
-integral foo = evalState (mapM inner foo) (Nothing, 0)
-  where
-    inner :: (Double, Double) -> State (Maybe Double, Double) Double
-    inner (time, factor) = do
-      (oldTime, current) <- get
-      case oldTime of
-        Nothing -> do
-          put (Just time, current)
-          return current
-        Just oldTime -> do
-          let new = current + ((time - oldTime) * factor)
-          put (Just time, new)
-          return new
+integral :: Vector Double -> Vector Double -> Vector Double
+integral xs ys = Vec.constructN (Vec.length xs) $ \ acc ->
+  case Vec.length acc of
+    0 -> 0
+    index -> lastArea + ((time - lastTime) * y)
+      where
+        lastArea = acc ! pred index
+        time = xs ! index
+        lastTime = xs ! pred index
+        y = ys ! index
 
 (|>) :: Signal a -> Signal a -> Signal a
 a |> b = case end a of
   Nothing -> a
   Just aEnd ->
-    let e = case end b of
-          Nothing -> Nothing
-          Just e -> Just (aEnd + e)
-    in Signal e $ \ times ->
-      let (forA, forB) = Vec.span (< aEnd) times
-      in runSignal a forA <> runSignal b (fmap (subtract aEnd) forB)
+    Signal (fmap (+ aEnd) (end b)) $ \ times ->
+      let (aTimes, bTimes) = Vec.span (`lt` aEnd) times
+      in
+        runSignal a aTimes <>
+        runSignal b (fmap (subtract aEnd) bTimes)
 
 repeat :: Integer -> Signal a -> Signal a
 repeat n signal =
@@ -161,13 +144,16 @@ repeat n signal =
 (+++) :: Num a => Signal a -> Signal a -> Signal a
 a +++ b =
   Signal (maxEnd a b) $ \ times ->
-    let as = runSignal a $ maybe times (\ end -> Vec.takeWhile (`lt` end) times) (end a)
-        bs = runSignal b $ maybe times (\ end -> Vec.takeWhile (`lt` end) times) (end b)
-    in zipWithOverlapping (+) as bs
+    zipWithOverlapping (+)
+      (runSignal a $ takeValidTimes (end a) times)
+      (runSignal b $ takeValidTimes (end b) times)
+  where
+    takeValidTimes :: Maybe Double -> Vector Double -> Vector Double
+    takeValidTimes end times = maybe times (\ end -> Vec.takeWhile (`lt` end) times) end
 
 zipWithOverlapping :: (a -> a -> a) -> Vector a -> Vector a -> Vector a
 zipWithOverlapping f as bs =
-  Vec.generate (max (length as) (length bs)) $ \ i ->
+  Vec.generate (max (Vec.length as) (Vec.length bs)) $ \ i ->
     case (as !? i, bs !? i) of
       (Just a, Just b) -> f a b
       (Just a, Nothing) -> a

@@ -65,11 +65,11 @@ spec = do
 
   describe "integral" $ do
     it "computes the integral with a constant of 0" $ do
-      integral (Vec.fromList [(0, 0), (1, 3), (2, 5), (3, 7)]) `shouldBe`
+      integral (Vec.fromList [0, 1, 2, 3]) (Vec.fromList [0, 3, 5, 7]) `shouldBe`
         Vec.fromList [0, 3, 8, 15 :: Double]
 
     it "takes smaller time deltas into account" $ do
-      integral (Vec.fromList [(0, 0), (0.1, 3), (0.3, 5), (1, 7)]) `shouldBeCloseTo`
+      integral (Vec.fromList [0, 0.1, 0.3, 1]) (Vec.fromList [0, 3, 5, 7]) `shouldBeCloseTo`
         Vec.fromList [0, 0.3, 1.3, 6.2 :: Double]
 
   describe "applicative interface" $ do
