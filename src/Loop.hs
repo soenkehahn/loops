@@ -1,8 +1,10 @@
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module Loop where
 
 import Signal
+import Bars
 import Transformations
 import Prelude ()
 import Data.Function
@@ -19,12 +21,11 @@ beat = bar / 4
 
 loop :: Signal Double
 loop =
-  -- take (2 * bar) $ skip (2 * bar) $
-  take (bar * 2) $
-  speedup (fmap (project (-1, 1) (0.90, 1.1)) (speedup (constant 0.2) sine)) $
   fmap (* 0.1) $
+  -- take (2 * bar) $ skip (2 * bar) $
+  take (bar * 8) $
+  -- skip (bar * 4) $
     song |>
-    -- song |>
     (ramp (bar * 4) 1 0 /\ song) |> silence 5 |>
     constant 0 |>
     empty
@@ -49,22 +50,26 @@ band =
 
 arps =
   echo 0.31 0.5 $
-    part 1 |>
-    part (4 / 3) |>
-    empty
+    foldl' (\ acc part -> acc |> beat part) empty (bars [2, 4, 4])
   where
-    part base =
-      arp base [200, 400, 300, 250] |>
-      arp base [200, 400, 300, 240] |>
-      arp base [200, 400, 300, 250] |>
-      arp base [200, 400, 300, 240] |>
-      empty
+    beat part =
+      foldl' (\ acc frequency -> acc |> note frequency) empty $ fmap (* 200) $
+        case part of
+          [0, 0, _] -> [1, 2, 1.5, 1.25]
+          [0, 1, _] -> [1, 2, 1.5, 1.2]
+          [0, 2, _] -> [1, 2, 1.5, 1.25]
+          [0, 3, _] -> [1, 2, 1.5, 1.2]
+          [1, 0, _] -> fmap (* (4 / 3)) [1, 2, 1.5, 1.25]
+          [1, 1, 2] -> fmap (* (4 / 3)) [1, 1.2, 1.5, 1.5 * (9 / 8)]
+          [1, 1, 3] -> fmap (* (4 / 3)) [1.5 * (5 / 4), 1.5 * (9 / 8), 1.5, 1.2]
+          [1, 1, _] -> fmap (* (4 / 3)) [1, 2, 1.5, 1.2]
+          [1, 2, _] -> fmap (* (4 / 3)) [1, 2, 1.5, 1.25]
+          [1, 3, 2] -> fmap (* (4 / 3)) [1, 1.2, 1.5, 1.5 * (9 / 8)]
+          [1, 3, 3] -> fmap (* (4 / 3)) [1.5 * (5 / 4), 2 * (9 / 8), 1.5, 1.2]
+          [1, 3, _] -> fmap (* (4 / 3)) [1, 2, 1.5, 1.2]
 
-arp base frequencies =
-  repeat 4 (foldl' (\ acc frequency -> acc |> note base frequency) empty frequencies)
-
-note :: Double -> Double -> Signal Double
-note base frequency = adsr (beat / 4) (Adsr 0.001 0.1 0.3 0.05) $ speedup (constant (base * frequency)) $ fmap sin phase
+note :: Double -> Signal Double
+note frequency = adsr (beat / 4) (Adsr 0.001 0.1 0.3 0.05) $ speedup (constant frequency) $ fmap sin phase
 
 snares =
   echo 0.105 0.05 $
