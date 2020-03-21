@@ -20,7 +20,7 @@ beat = bar / 4
 loop :: Signal Double
 loop =
   -- take (2 * bar) $ skip (2 * bar) $
-  take (bar * 12) $
+  take (bar * 2) $
   speedup (fmap (project (-1, 1) (0.90, 1.1)) (speedup (constant 0.2) sine)) $
   fmap (* 0.1) $
     song |>

@@ -2,7 +2,7 @@ name: loop
 ghc-options:
   - -fdefer-typed-holes
   # - -fdefer-type-errors
-  - -O1
+  - -O2
   - -Wall
   - -Wno-name-shadowing
 

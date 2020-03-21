@@ -6,14 +6,26 @@ import Signal
 import Prelude ()
 import Data.String.Conversions
 import Test.Utils
+import Epsilon
 import qualified Data.Vector as Vec
 
-shouldYield :: (Show a, Epsilon a) => Signal a -> [a] -> IO ()
+shouldYield :: (Show a, EpsilonEq a) => Signal a -> [a] -> IO ()
 shouldYield signal expected = do
   test 0.5 1.5 signal expected
 
 spec :: Spec
 spec = do
+  describe "toVector" $ do
+    it "converts signals into vectors" $ do
+      toVector 0.5 (take 1 (constant 23)) `shouldBe` Vec.fromList [23, 23 :: Double]
+
+    it "doesn't overrun the given length" $ do
+      toVector 0.3 (take 1 (constant 23)) `shouldBe` Vec.fromList [23, 23, 23, 23 :: Double]
+
+    it "uses proper floating point inequalities" $ do
+      toVector 0.3 (take 0.9 (constant 23)) `shouldBe` Vec.fromList [23, 23, 23 :: Double]
+      toVector 0.2 (take 0.6 (constant 23)) `shouldBe` Vec.fromList [23, 23, 23 :: Double]
+
   describe "fromList" $ do
     it "converts a list into a signal" $ do
       fromList 0.5 [1, 2, 3] `shouldYield` [1, 2, 3 :: Integer]

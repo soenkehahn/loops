@@ -6,15 +6,16 @@ module Signal (
   module Signal,
 ) where
 
-import Prelude hiding (take, repeat)
 import Control.Monad.Trans.State.Strict
-import System.Random
 import Data.Fixed
-import qualified Data.ByteString.Lazy as BS hiding (snoc)
-import qualified Data.ByteString.Conversion as BS
-import qualified Data.ByteString.Builder as Builder
 import Data.Vector (Vector, (!?))
+import Epsilon
+import Prelude hiding (take, repeat)
+import qualified Data.ByteString.Builder as Builder
+import qualified Data.ByteString.Conversion as BS
+import qualified Data.ByteString.Lazy as BS hiding (snoc)
 import qualified Data.Vector as Vec
+import System.Random
 
 -- signal basics
 
@@ -40,23 +41,23 @@ instance Applicative Signal where
   pure = constant
   fSignal <*> xSignal =
     Signal (minEnd fSignal xSignal) $ \ times ->
-      let fs = runSignal fSignal times
-          xs = runSignal xSignal times
-      in Vec.zipWith ($) fs xs
+      Vec.zipWith ($)
+        (runSignal fSignal times)
+        (runSignal xSignal times)
 
-toList :: Double -> Signal a -> [a]
-toList delta signal =
-  Vec.toList $
-  runSignal signal $
-  Vec.fromList $
-  deltas
+toVector :: Double -> Signal a -> Vector a
+toVector delta signal =
+  runSignal signal deltas
   where
+    deltas :: Vector Double
     deltas = case end signal of
-      Just end -> takeWhile (< end) [0, delta ..]
-      Nothing -> [0, delta ..]
+      Just end ->
+        let numberOfSamples = ceiling (end / delta)
+        in Vec.enumFromStepN 0 delta numberOfSamples
+      Nothing -> error "toVector: infinite signals are not supported"
 
 toByteString :: forall a . BS.ToByteString a => Double -> Signal a -> BS.ByteString
-toByteString delta signal = Builder.toLazyByteString $ inner $ toList delta signal
+toByteString delta signal = Builder.toLazyByteString $ inner $ Vec.toList $ toVector delta signal
   where
     inner :: [a] -> Builder.Builder
     inner samples = case samples of
@@ -160,8 +161,8 @@ repeat n signal =
 (+++) :: Num a => Signal a -> Signal a -> Signal a
 a +++ b =
   Signal (maxEnd a b) $ \ times ->
-    let as = runSignal a $ maybe times (\ end -> Vec.takeWhile (< end) times) (end a)
-        bs = runSignal b $ maybe times (\ end -> Vec.takeWhile (< end) times) (end b)
+    let as = runSignal a $ maybe times (\ end -> Vec.takeWhile (`lt` end) times) (end a)
+        bs = runSignal b $ maybe times (\ end -> Vec.takeWhile (`lt` end) times) (end b)
     in zipWithOverlapping (+) as bs
 
 zipWithOverlapping :: (a -> a -> a) -> Vector a -> Vector a -> Vector a
@@ -174,8 +175,7 @@ zipWithOverlapping f as bs =
       (Nothing, Nothing) -> error "zipWithOverlapping: shouldn't happen"
 
 (/\) :: Num a => Signal a -> Signal a -> Signal a
-a /\ b = Signal (minEnd a b) $ \ times ->
-  Vec.zipWith (*) (runSignal a times) (runSignal b times)
+a /\ b = (*) <$> a <*> b
 
 silence :: Num a => Double -> Signal a
 silence length = take length (constant 0)
