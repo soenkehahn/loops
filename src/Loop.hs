@@ -20,9 +20,13 @@ beat = bar / 4
 loop :: Signal Double
 loop =
   -- take (2 * bar) $ skip (2 * bar) $
+  take (bar * 12) $
+  speedup (fmap (project (-1, 1) (0.90, 1.1)) (speedup (constant 0.2) sine)) $
   fmap (* 0.1) $
     song |>
-    -- (ramp (bar * 4) 1 0 /\ song) |>
+    -- song |>
+    (ramp (bar * 4) 1 0 /\ song) |> silence 5 |>
+    constant 0 |>
     empty
   where
     song =
