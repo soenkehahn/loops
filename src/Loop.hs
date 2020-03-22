@@ -22,12 +22,10 @@ beat = bar / 4
 loop :: Signal Double
 loop =
   fmap (* 0.1) $
-  -- take (2 * bar) $ skip (2 * bar) $
   take (bar * 8) $
-  -- skip (bar * 4) $
     song |>
-    (ramp (bar * 4) 1 0 /\ song) |> silence 5 |>
-    constant 0 |>
+    (ramp (bar * 4) 1 0 /\ song) |>
+    silence 5 |>
     empty
   where
     song =
