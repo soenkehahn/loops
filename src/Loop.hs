@@ -48,9 +48,9 @@ band =
 
 arps =
   echo 0.31 0.5 $
-    foldl' (\ acc part -> acc |> beat part) empty (bars [2, 4, 4])
+    foldl' (\ acc part -> acc |> arp part) empty (bars [2, 4, 4])
   where
-    beat part =
+    arp part =
       foldl' (\ acc frequency -> acc |> note frequency) empty $ fmap (* 200) $
         case part of
           [0, 0, _] -> [1, 2, 1.5, 1.25]
@@ -66,8 +66,12 @@ arps =
           [1, 3, 3] -> fmap (* (4 / 3)) [1.5 * (5 / 4), 2 * (9 / 8), 1.5, 1.2]
           [1, 3, _] -> fmap (* (4 / 3)) [1, 2, 1.5, 1.2]
 
-note :: Double -> Signal Double
-note frequency = adsr (beat / 4) (Adsr 0.001 0.1 0.3 0.05) $ speedup (constant frequency) $ fmap sin phase
+    note :: Double -> Signal Double
+    note frequency =
+      adsr (beat / 4) (Adsr 0.001 0.1 0.3 0.05) $
+        speedup (constant frequency) $ fmap sin phase
+
+inBars length signals = foldl' (|>) empty $ map (fill length) signals
 
 snares =
   echo 0.105 0.05 $
@@ -89,8 +93,6 @@ snares =
     silence 0.8 |> fill 0.6 snare |> snare :
     silence 0.6 |> fill 0.6 snare |> snare :
     []
-
-inBars length signals = foldl' (|>) empty $ map (fill length) signals
 
 snare =
   random (-1, 1)
