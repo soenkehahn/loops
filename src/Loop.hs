@@ -22,10 +22,10 @@ beat = bar / 4
 loop :: Signal Double
 loop =
   fmap (* 0.1) $
-  take (bar * 8) $
+  -- take (bar * 8) $
     song |>
-    (ramp (bar * 4) 1 0 /\ song) |>
-    silence 5 |>
+    -- (ramp (bar * 4) 1 0 /\ song) |>
+    -- silence 5 |>
     empty
   where
     song =
@@ -39,7 +39,10 @@ melody =
     []
   where
     n start frequency = adsr 6.0 (Adsr 0.1 1 0.7 2.3) $
-      speedup (ramp 0.7 start frequency |> constant frequency) rect
+      speedup (take 4 (constant 1) |>
+        fmap (project (-1, 1) (0.995, 1.005)) (speedup (constant (2 / beat)) sine)) $
+      speedup (ramp 0.7 start frequency |> constant frequency) $
+      rect
 
 band =
   take (bar * 8) $
