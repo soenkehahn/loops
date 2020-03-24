@@ -12,6 +12,7 @@ dependencies:
   - bytestring
   - bytestring-conversion
   - vector
+  - generics-eot
 
 executables:
   loop:

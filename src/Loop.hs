@@ -1,36 +1,48 @@
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Loop where
 
 import Signal
+import System.IO
 import Bars
 import Transformations
 import Prelude ()
 import Data.Function
 import Data.List (foldl')
 import qualified Data.ByteString.Lazy as BS
+import Data.Foldable
 
 main :: IO ()
 main = do
-  BS.putStr $ toByteString (1 / 44100) $ take 100 loop
+  forM_ (end loop) $ \ end ->
+    hPutStrLn stderr ("length: " ++ show end)
+  BS.putStr $ toByteString (1 / 44100) loop
 
 bar = 3.2
-
 beat = bar / 4
+pointed = beat * 3 / 4
 
 loop :: Signal Double
 loop =
-  fmap (* 0.1) $
-  -- take (bar * 8) $
+  -- skip (bar * 9.5) $
+  take (sum $ map partLength (allValues :: [Part])) $
     song |>
     -- (ramp (bar * 4) 1 0 /\ song) |>
     -- silence 5 |>
     empty
-  where
-    song =
-      band +++
-      fmap (* 0.02) melody
+
+song =
+  fmap (* 0.3)$
+  mix $
+    fmap (* 0.06) melody :
+    arps :
+    snares :
+    bass :
+    []
+
 
 melody =
   inBars (bar * 4) $
@@ -40,79 +52,169 @@ melody =
   where
     n start frequency = adsr 6.0 (Adsr 0.1 1 0.7 2.3) $
       speedup (take 4 (constant 1) |>
-        fmap (project (-1, 1) (0.995, 1.005)) (speedup (constant (2 / beat)) sine)) $
+        fmap (project (-1, 1) (0.995, 1.005)) (speedup (constant (2 / fromTime beat)) sine)) $
       speedup (ramp 0.7 start frequency |> constant frequency) $
       rect
 
-band =
-  take (bar * 8) $
-  fmap (* 0.3) $
-    arps +++ snares +++ (bass 1 |> bass (4 / 3))
+    inBars length signals = foldl' (|>) empty $ map (fill length) signals
+
+data Part
+  = A GC
+  | B BB
+  deriving (Eq, Generic)
+
+instance AllValues Part
+
+instance PartLength Part where
+  partLength = \case
+    A _ -> bar
+    B sub -> case sub of
+      BI -> bar * 2
+      BII -> bar * 2.5
+      BIII -> bar
+
+data GC = G Fours | C Fours
+  deriving (Eq, Generic)
+
+instance AllValues GC
+
+data Fours = One | Two | Three | Four
+  deriving (Eq, Generic)
+
+instance AllValues Fours
+
+data BB = BI | BII | BIII
+  deriving (Eq, Generic)
+
+instance AllValues BB
 
 arps =
   echo 0.31 0.5 $
-    foldl' (\ acc part -> acc |> arp part) empty (bars [2, 4, 4])
+    orchestrate arp
   where
     arp part =
       foldl' (\ acc frequency -> acc |> note frequency) empty $ fmap (* 200) $
         case part of
-          [0, 0, _] -> [1, 2, 1.5, 1.25]
-          [0, 1, _] -> [1, 2, 1.5, 1.2]
-          [0, 2, _] -> [1, 2, 1.5, 1.25]
-          [0, 3, _] -> [1, 2, 1.5, 1.2]
-          [1, 0, _] -> fmap (* (4 / 3)) [1, 2, 1.5, 1.25]
-          [1, 1, 2] -> fmap (* (4 / 3)) [1, 1.2, 1.5, 1.5 * (9 / 8)]
-          [1, 1, 3] -> fmap (* (4 / 3)) [1.5 * (5 / 4), 1.5 * (9 / 8), 1.5, 1.2]
-          [1, 1, _] -> fmap (* (4 / 3)) [1, 2, 1.5, 1.2]
-          [1, 2, _] -> fmap (* (4 / 3)) [1, 2, 1.5, 1.25]
-          [1, 3, 2] -> fmap (* (4 / 3)) [1, 1.2, 1.5, 1.5 * (9 / 8)]
-          [1, 3, 3] -> fmap (* (4 / 3)) [1.5 * (5 / 4), 2 * (9 / 8), 1.5, 1.2]
-          [1, 3, _] -> fmap (* (4 / 3)) [1, 2, 1.5, 1.2]
+          A (G One) -> concat $ replicate 4 [1, 2, 1.5, 1.25]
+          A (G Two) -> concat $ replicate 4 [1, 2, 1.5, 1.2]
+          A (G Three) -> concat $ replicate 4 [1, 2, 1.5, 1.25]
+          A (G Four) -> concat $ replicate 4 [1, 2, 1.5, 1.2]
+          A (C One) -> fmap (* (4 / 3)) $
+            [1, 2, 1.5, 1.25] ++
+            [1, 2, 1.5, 1.25] ++
+            [1, 2, 1.5, 1.25] ++
+            [1, 2, 1.5, 1.25]
+          A (C Two) -> fmap (* (4 / 3)) $
+            [1, 2, 1.5, 1.2] ++
+            [1, 2, 1.5, 1.2] ++
+            [1, 1.2, 1.5, 1.5 * (9 / 8)] ++
+            [1.5 * (5 / 4), 1.5 * (9 / 8), 1.5, 1.2]
+          A (C Three) -> fmap (* (4 / 3)) $
+            [1, 2, 1.5, 1.25] ++
+            [1, 2, 1.5, 1.25] ++
+            [1, 2, 1.5, 1.25] ++
+            [1, 2, 1.5, 1.25]
+          A (C Four) -> fmap (* (4 / 3)) $
+            [1, 2, 1.5, 1.2] ++
+            [1, 2, 1.5, 1.2] ++
+            [1, 1.2, 1.5, 1.5 * (9 / 8)] ++
+            [1.5 * (5 / 4), 2 * (9 / 8), 1.5 * (5 / 4), 1.5 * (9 / 8)]
+          B BI ->
+            [c', c'', g'] ++
+            [f', d', bflat] ++
+            [eflat', c'] ++
+            concat (replicate 6 [aflat, aflat', eflat', c'])
+          B BII ->
+            [aflat, aflat', eflat'] ++
+            [d', bflat, g] ++
+            [c', aflat] ++
+            [f, f', c', aflat] ++
+            [f, f', c', aflat] ++
+            [f, f', c', aflat] ++
+            [f, f', c', aflat] ++
+            [f, f', c', a] ++
+            [f, f', c', a] ++
+            [f, eflat', c', a] ++
+            [f, eflat', c', a] ++
+            []
+          B BIII ->
+            concat $ replicate 4 [fsharp, fsharp', d', a]
+
+    d = d' / 2
+    f = f' / 2
+    fsharp = d * 5 / 4
+    g = 1
+    aflat = bflat * 7 / 8
+    a = f * 5 / 4
+    bflat = g * 1.2
+    c' = 4 / 3
+    d' = g * 3 / 2
+    eflat' = 1.2 * 4 / 3
+    f' = c' * 4 / 3
+    fsharp' = d' * 5 / 4
+    g' = 2
+    aflat' = aflat * 2
+    c'' = c' * 2
 
     note :: Double -> Signal Double
     note frequency =
       adsr (beat / 4) (Adsr 0.001 0.1 0.3 0.05) $
         speedup (constant frequency) $ fmap sin phase
 
-inBars length signals = foldl' (|>) empty $ map (fill length) signals
-
 snares =
-  echo 0.105 0.05 $
-  inBars (2 * beat) $
-    silence 0.8 |> snare :
-    silence 0.8 |> snare :
-    silence 0.8 |> snare |> silence 0.5 |> snare :
-    silence 0.8 |> snare :
-    silence 0.8 |> snare :
-    silence 0.8 |> fill 0.4 snare |> snare :
-    silence 0.8 |> fill 0.6 snare |> snare :
-    silence 0.6 |> fill 0.6 snare |> snare :
-    silence 0.8 |> snare :
-    silence 0.8 |> snare :
-    silence 0.8 |> snare |> silence 0.5 |> snare :
-    silence 0.8 |> snare :
-    silence 0.8 |> snare :
-    silence 0.8 |> fill 0.4 snare |> snare :
-    silence 0.8 |> fill 0.6 snare |> snare :
-    silence 0.6 |> fill 0.6 snare |> snare :
-    []
-
-snare =
-  random (-1, 1)
-    & adsr 0.06 (Adsr 0.01 0.05 0.2 0.01)
-    & fmap (* 0.3)
-
-bass base =
-  skip 0.02 $
-  inBars bar $
-    fill 3 (n 50) |> n 25 :
-    n 50 :
-    fill 3 (n 50) |> n 25 :
-    n 50 |> n 25 |> n 50 :
-    []
+  echo 0.105 0.05 $ orchestrate $ \case
+    A (G One) -> silence 0.8 |> snare # silence 0.8 |> snare
+    A (G Two) -> (silence 0.8 |> snare |> silence 0.5 |> snare) # (silence 0.8 |> snare)
+    A (G Three) -> silence 0.8 |> snare # silence 0.8 |> fill 0.4 snare |> snare
+    A (G Four) -> silence 0.8 |> fill 0.6 snare |> snare # silence 0.6 |> fill 0.6 snare |> snare
+    A (C One) -> silence 0.8 |> snare # silence 0.8 |> snare
+    A (C Two) -> silence 0.8 |> snare |> silence 0.5 |> snare # silence 0.8 |> snare
+    A (C Three) -> silence 0.8 |> snare # silence 0.8 |> fill 0.4 snare |> snare
+    A (C Four) -> silence 0.8 |> fill 0.6 snare |> snare # silence 0.6 |> fill 0.6 snare |> snare
+    B BI ->
+      silence (beat / 2) |> fill pointed snare |> fill pointed snare |>
+      (silence 0.8 |> snare # (silence 0.8 |> snare # silence 0.8 |> snare))
+    B BII ->
+      silence (beat / 2) |> fill pointed snare |> fill pointed snare |>
+      (silence 0.8 |> snare # fill (2 * beat) (silence 0.8 |> snare)) |>
+      (silence 0.8 |> snare # silence 0.8 |> snare)
+    B BIII -> silence 0.8 |> fill 0.6 snare |> snare # silence 0.6 |> fill 0.6 snare |> snare
   where
+    a # b = fill (2 * beat) a |> b
+    snare =
+      random (-1, 1)
+        & adsr 0.06 (Adsr 0.01 0.05 0.2 0.01)
+        & fmap (* 0.3)
+
+bass =
+  skip 0.02 $ orchestrate partA
+  where
+    partA :: Part -> Signal Double
+    partA part = case part of
+      A (G One) -> fill 3 (n g) |> n f
+      A (G Two) -> n g
+      A (G Three) -> fill 3 (n g) |> n f
+      A (G Four) -> n g |> n f |> n g
+      A (C One) -> fill 3 (n c) |> n bflat
+      A (C Two) -> n c
+      A (C Three) -> fill 3 (n c) |> n bflat
+      A (C Four) -> n c |> n bflat |> n c
+      B BI -> fill (bar / 2) $
+        fill pointed (n c) |> fill pointed (n bflat) |> n aflat
+      B BII -> fill bar $
+        fill pointed (n aflat) |> fill pointed (n g) |> n f
+      B BIII -> fill bar $
+        n fsharp
+
+    f = g * 7 / 8
+    fsharp = ((50 * 3 / 2) * 5 / 4) / 2
+    g = 50
+    aflat = bflat * 7 / 8
+    bflat = g * 1.2
+    c = g * 4 / 3
+
     n frequency =
       adsr 0.2 (Adsr 0.01 0.06 0.5 0.01) $
-      speedup (constant (base * frequency) +++ (take (beat / 8) (constant 0) |> ramp (beat / 8) 0 (-7))) $
+      speedup (constant frequency +++ (take (beat / 8) (constant 0) |> ramp (beat / 8) 0 (-7))) $
       fmap (clip (-1, 1) . (* 7)) $
       saw

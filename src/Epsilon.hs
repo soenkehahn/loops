@@ -43,3 +43,8 @@ instance EpsilonEq a => EpsilonEq [a] where
 
 instance EpsilonEq a => EpsilonEq (Vec.Vector a) where
   as ==== bs = Vec.toList as ==== Vec.toList bs
+
+instance EpsilonEq a => EpsilonEq (Maybe a) where
+  Nothing ==== Nothing = True
+  Just a ==== Just b = a ==== b
+  _ ==== _ = False

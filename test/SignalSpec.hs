@@ -26,6 +26,12 @@ spec = do
       toVector 0.3 (take 0.9 (constant 23)) `shouldBe` Vec.fromList [23, 23, 23 :: Double]
       toVector 0.2 (take 0.6 (constant 23)) `shouldBe` Vec.fromList [23, 23, 23 :: Double]
 
+  describe "deltas" $ do
+    it "doesn't produce too many deltas on floating point rounding errors" $ do
+      let end = 1.00000000000001
+      print (1 `lt` end)
+      deltas 0.5 end `shouldBeCloseTo` Vec.fromList [0.0, 0.5]
+
   describe "fromList" $ do
     it "converts a list into a signal" $ do
       fromList 0.5 [1, 2, 3] `shouldYield` [1, 2, 3 :: Integer]
@@ -37,6 +43,11 @@ spec = do
   describe "take" $ do
     it "takes samples for the given amount of time" $ do
       constant 42 `shouldYield` [42, 42, 42 :: Integer]
+
+    it "handles shorter input signals correctly" $ do
+      let signal = take 2 (take 1 (constant 42))
+      end signal `shouldBeCloseTo` Just 1
+      signal `shouldYield` [42, 42 :: Double]
 
   describe "skip" $ do
     it "skips the first part of a signal" $ do
@@ -103,6 +114,11 @@ spec = do
     it "keeps the second signal if the first stops" $ do
       let signal = take 1 (constant 23) +++ constant 42
       test 1 3 signal [65, 42, 42 :: Double]
+
+  describe "mix" $ do
+    it "mixes a list of signals with +++" $ do
+      let signal = mix [constant 23, take 1 (constant 42)]
+      test 1 3 signal [65, 23, 23 :: Double]
 
   describe "/\\" $ do
     it "multiplies two signals" $ do

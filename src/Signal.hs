@@ -1,13 +1,17 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Signal (
   module Prelude,
   module Signal,
 ) where
 
+import Data.Function
 import Data.Fixed
+import Data.List (foldl')
+import Control.Exception
 import Data.Vector (Vector, (!), (!?))
 import Epsilon
 import Prelude hiding (take, repeat)
@@ -19,21 +23,37 @@ import System.Random
 
 -- signal basics
 
+newtype Time = Time {
+  fromTime :: Double
+} deriving (Num, Fractional)
+
+instance Show Time where
+  show (Time t) = show t
+
+instance EpsilonOrd Time where
+  compare (Time a) (Time b) = Epsilon.compare a b
+
+minTime :: Time -> Time -> Time
+minTime a b = Time $ min (fromTime a) (fromTime b)
+
+maxTime :: Time -> Time -> Time
+maxTime a b = Time $ max (fromTime a) (fromTime b)
+
 data Signal a = Signal {
-  end :: Maybe Double,
-  runSignal :: Vector Double -> Vector a
+  end :: Maybe Time,
+  runSignal :: Vector Time -> Vector a
 } deriving (Functor)
 
-minEnd :: Signal a -> Signal b -> Maybe Double
+minEnd :: Signal a -> Signal b -> Maybe Time
 minEnd a b = case (end a, end b) of
-  (Just a, Just b) -> Just $ min a b
+  (Just a, Just b) -> Just $ minTime a b
   (Just a, Nothing) -> Just a
   (Nothing, Just b) -> Just b
   (Nothing, Nothing) -> Nothing
 
-maxEnd :: Signal a -> Signal b -> Maybe Double
+maxEnd :: Signal a -> Signal b -> Maybe Time
 maxEnd a b = case (end a, end b) of
-  (Just a, Just b) -> Just $ max a b
+  (Just a, Just b) -> Just $ maxTime a b
   (_, Nothing) -> Nothing
   (Nothing, _) -> Nothing
 
@@ -45,18 +65,15 @@ instance Applicative Signal where
         (runSignal fSignal times)
         (runSignal xSignal times)
 
-toVector :: Double -> Signal a -> Vector a
-toVector delta signal =
-  runSignal signal deltas
-  where
-    deltas :: Vector Double
-    deltas = case end signal of
-      Just end ->
-        let numberOfSamples = ceiling (end / delta)
-        in Vec.enumFromStepN 0 delta numberOfSamples
-      Nothing -> error "toVector: infinite signals are not supported"
+toVector :: Time -> Signal a -> Vector a
+toVector delta signal = case end signal of
+  Just end -> runSignal signal (deltas delta end)
+  Nothing -> error "toVector: infinite signals not supported"
 
-toByteString :: forall a . BS.ToByteString a => Double -> Signal a -> BS.ByteString
+deltas :: Time -> Time -> Vector Time
+deltas delta end = Vec.unfoldr (\ current -> if current `lt` end then Just (current, current + delta) else Nothing) 0
+
+toByteString :: forall a . BS.ToByteString a => Time -> Signal a -> BS.ByteString
 toByteString delta signal = Builder.toLazyByteString $ Vec.foldl' inner mempty $ toVector delta signal
   where
     inner :: Builder.Builder -> a -> Builder.Builder
@@ -66,24 +83,24 @@ toByteString delta signal = Builder.toLazyByteString $ Vec.foldl' inner mempty $
 constant :: a -> Signal a
 constant a = Signal Nothing $ \ times -> fmap (const a) times
 
-take :: Double -> Signal a -> Signal a
+take :: Time -> Signal a -> Signal a
 take length (Signal mEnd signal) = Signal end' signal
   where
     end' = Just $ case mEnd of
       Nothing -> length
-      Just end -> min end length
+      Just end -> minTime end length
 
-skip :: Double -> Signal a -> Signal a
+skip :: Time -> Signal a -> Signal a
 skip length (Signal end signal) =
   Signal
-    (fmap (\ signalEnd -> max 0 (signalEnd - length)) end)
+    (fmap (\ signalEnd -> maxTime 0 (signalEnd - length)) end)
     (\ times -> signal $ fmap (+ length) times)
 
-fromList :: Double -> [a] -> Signal a
+fromList :: Time -> [a] -> Signal a
 fromList delta (Vec.fromList -> vec) =
   Signal
     (Just $ fromIntegral (length vec) * delta)
-    (fmap $ \ time -> vec ! floor (time / delta))
+    (fmap $ \ time -> vec ! floor (fromTime time / fromTime delta))
 
 random :: forall a . Random a => (a, a) -> Signal a
 random bounds =
@@ -99,7 +116,7 @@ tau :: Double
 tau = pi * 2
 
 phase :: Signal Double
-phase = Signal Nothing $ fmap $ \ time -> (time `mod'` 1) * tau
+phase = Signal Nothing $ fmap $ \ time -> (fromTime time `mod'` 1) * tau
 
 project :: (Double, Double) -> (Double, Double) -> Double -> Double
 project (fromLow, fromHigh) (toLow, toHigh) x =
@@ -111,10 +128,10 @@ clip (lower, upper) x = max lower (min upper x)
 speedup :: forall a . Signal Double -> Signal a -> Signal a
 speedup factorSignal inputSignal = case end inputSignal of
   Nothing -> Signal (end factorSignal) $ \ times ->
-    runSignal inputSignal (integral times (runSignal factorSignal times))
+    runSignal inputSignal (integral times (runSignal (fmap Time factorSignal) times))
   Just _ -> error "speedup not supported for finite input signals"
 
-integral :: Vector Double -> Vector Double -> Vector Double
+integral :: Num a => Vector a -> Vector a -> Vector a
 integral xs ys = Vec.constructN (Vec.length xs) $ \ acc ->
   case Vec.length acc of
     0 -> 0
@@ -148,8 +165,11 @@ a +++ b =
       (runSignal a $ takeValidTimes (end a) times)
       (runSignal b $ takeValidTimes (end b) times)
   where
-    takeValidTimes :: Maybe Double -> Vector Double -> Vector Double
+    takeValidTimes :: Maybe Time -> Vector Time -> Vector Time
     takeValidTimes end times = maybe times (\ end -> Vec.takeWhile (`lt` end) times) end
+
+mix :: Num a => [Signal a] -> Signal a
+mix = foldl' (+++) empty
 
 zipWithOverlapping :: (a -> a -> a) -> Vector a -> Vector a -> Vector a
 zipWithOverlapping f as bs =
@@ -163,10 +183,10 @@ zipWithOverlapping f as bs =
 (/\) :: Num a => Signal a -> Signal a -> Signal a
 a /\ b = (*) <$> a <*> b
 
-silence :: Num a => Double -> Signal a
+silence :: Num a => Time -> Signal a
 silence length = take length (constant 0)
 
-fill :: Num a => Double -> Signal a -> Signal a
+fill :: Num a => Time -> Signal a -> Signal a
 fill length signal = take length (signal |> constant 0)
 
 saw :: Signal Double
@@ -178,20 +198,20 @@ sine = fmap sin phase
 rect :: Signal Double
 rect = fmap (\ x -> if x < tau / 2 then -1 else 1) phase
 
-ramp :: Double -> Double -> Double -> Signal Double
-ramp 0 _ _ = empty
+ramp :: Time -> Double -> Double -> Signal Double
+ramp length _ _ | length ==== 0 = empty
 ramp length start end =
   Signal (Just length) $ fmap $ \ time ->
-    (time / length) * (end - start) + start
+    (fromTime time / fromTime length) * (end - start) + start
 
 data Adsr = Adsr {
-  attack :: Double,
-  decay :: Double,
+  attack :: Time,
+  decay :: Time,
   sustain :: Double,
-  release :: Double
+  release :: Time
 }
 
-adsr :: Double -> Adsr -> Signal Double -> Signal Double
+adsr :: Time -> Adsr -> Signal Double -> Signal Double
 adsr length (Adsr attack decay sustain release) signal =
   envelope /\ signal
   where

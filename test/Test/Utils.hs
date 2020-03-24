@@ -7,7 +7,7 @@ import Test.HUnit (assertFailure)
 import qualified Data.Vector as Vec
 import Epsilon
 
-test :: (HasCallStack, EpsilonEq a, Show a) => Double -> Double -> Signal a -> [a] -> IO ()
+test :: (HasCallStack, EpsilonEq a, Show a) => Time -> Time -> Signal a -> [a] -> IO ()
 test delta length signal expected =
   toVector delta (take length signal) `shouldBeCloseTo` Vec.fromList expected
 
