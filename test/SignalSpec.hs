@@ -1,13 +1,11 @@
 module SignalSpec where
 
-import Loop ()
-import Test.Hspec
-import Signal
-import Prelude ()
-import Data.String.Conversions
-import Test.Utils
 import Epsilon
-import qualified Data.Vector as Vec
+import Loop ()
+import Prelude ()
+import Signal
+import Test.Hspec
+import Test.Utils
 
 shouldYield :: (Show a, EpsilonEq a) => Signal a -> [a] -> IO ()
 shouldYield signal expected = do
@@ -15,30 +13,25 @@ shouldYield signal expected = do
 
 spec :: Spec
 spec = do
-  describe "toVector" $ do
+  describe "toList" $ do
     it "converts signals into vectors" $ do
-      toVector 0.5 (take 1 (constant 23)) `shouldBe` Vec.fromList [23, 23 :: Double]
+      toList 0.5 (take 1 (constant 23)) `shouldBe` [23, 23 :: Double]
 
     it "doesn't overrun the given length" $ do
-      toVector 0.3 (take 1 (constant 23)) `shouldBe` Vec.fromList [23, 23, 23, 23 :: Double]
+      toList 0.3 (take 1 (constant 23)) `shouldBe` [23, 23, 23, 23 :: Double]
 
     it "uses proper floating point inequalities" $ do
-      toVector 0.3 (take 0.9 (constant 23)) `shouldBe` Vec.fromList [23, 23, 23 :: Double]
-      toVector 0.2 (take 0.6 (constant 23)) `shouldBe` Vec.fromList [23, 23, 23 :: Double]
+      toList 0.3 (take 0.9 (constant 23)) `shouldBe` [23, 23, 23 :: Double]
+      toList 0.2 (take 0.6 (constant 23)) `shouldBe` [23, 23, 23 :: Double]
 
   describe "deltas" $ do
     it "doesn't produce too many deltas on floating point rounding errors" $ do
       let end = 1.00000000000001
-      print (1 `lt` end)
-      deltas 0.5 end `shouldBeCloseTo` Vec.fromList [0.0, 0.5]
+      deltas 0.5 (Just end) `shouldBeCloseTo` [0.0, 0.5]
 
   describe "fromList" $ do
     it "converts a list into a signal" $ do
       fromList 0.5 [1, 2, 3] `shouldYield` [1, 2, 3 :: Integer]
-
-  describe "toByteString" $ do
-    it "converts the numbers to a lazy ByteString, one per line" $ do
-      toByteString 1 (fromList 1 [1, 2, 3 :: Double]) `shouldBe` cs "1\n2\n3\n"
 
   describe "take" $ do
     it "takes samples for the given amount of time" $ do
@@ -76,12 +69,15 @@ spec = do
 
   describe "integral" $ do
     it "computes the integral with a constant of 0" $ do
-      integral (Vec.fromList [0, 1, 2, 3]) (Vec.fromList [0, 3, 5, 7]) `shouldBe`
-        Vec.fromList [0, 3, 8, 15 :: Double]
+      let signal = integral (fromList 1 [0, 3, 5, 7])
+      test 1 10 signal [0, 3, 8, 15 :: Double]
 
-    it "takes smaller time deltas into account" $ do
-      integral (Vec.fromList [0, 0.1, 0.3, 1]) (Vec.fromList [0, 3, 5, 7]) `shouldBeCloseTo`
-        Vec.fromList [0, 0.3, 1.3, 6.2 :: Double]
+    it "takes varying time deltas into account" $ do
+      let signal = integral (fromList 1 [0, 3, 5])
+      runOnDeltas signal [0, 1.2, 1.7, 2.2] `shouldBeCloseTo` [0, 3.6, 5.1, 7.6]
+
+    it "always starts with 0" $ do
+      test 1 1 (integral (constant 42)) [0 :: Double]
 
   describe "applicative interface" $ do
     it "<*> and <$> work" $ do
@@ -97,6 +93,10 @@ spec = do
     it "allows to sequentialize signals" $ do
       let signal = take 0.5 (constant 23) |> take 0.5 (constant 42)
       test 0.25 3 signal ([23, 23, 42, 42] :: [Integer])
+
+    it "passes in the right time to the second snippet" $ do
+      let signal = ramp 1 0 1 |> ramp 1 0 1
+      test 0.5 10 signal [0, 0.5, 0, 0.5 :: Double]
 
   describe "repeat" $ do
     it "repeats a signal n times" $ do

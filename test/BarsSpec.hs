@@ -92,7 +92,7 @@ orchestrateSpec = do
           signal = \case
             A -> take 1 $ constant 23
             B -> take 1 $ constant 42
-      test 1 10 (orchestrate signal) [23, 42]
+      test 0.5 10 (orchestrate signal) [23, 23, 42, 42]
 
     it "allows parts with different lengths" $ do
       let signal :: DifferentLengths -> Signal Integer
@@ -123,7 +123,6 @@ orchestrateSpec = do
       test 0.5 3 (orchestrate signal) [23, 23, 65, 65, 23, 23]
 
     it "allows nested enum types" $ do
-      print (allValues :: [Nested])
       let signal :: Nested -> Signal Integer
           signal part = take 1 $ case part of
             First A -> constant 1

@@ -5,21 +5,16 @@
 
 module Loop where
 
-import Signal
-import System.IO
 import Bars
-import Transformations
-import Prelude ()
 import Data.Function
 import Data.List (foldl')
-import qualified Data.ByteString.Lazy as BS
-import Data.Foldable
+import Prelude ()
+import Signal
+import Transformations
 
 main :: IO ()
 main = do
-  forM_ (end loop) $ \ end ->
-    hPutStrLn stderr ("length: " ++ show end)
-  BS.putStr $ toByteString (1 / 44100) loop
+  printSamples loop
 
 bar = 3.2
 beat = bar / 4
@@ -27,15 +22,17 @@ pointed = beat * 3 / 4
 
 loop :: Signal Double
 loop =
+  fmap (* 0.3) $
+  -- take 3 $
   -- skip (bar * 9.5) $
-  take (sum $ map partLength (allValues :: [Part])) $
-    song |>
-    -- (ramp (bar * 4) 1 0 /\ song) |>
-    -- silence 5 |>
+  -- take (sum $ map partLength (allValues :: [Part])) $
+    ((ramp (bar * 4) 0 1 |> take (bar * 5.5) (constant 1)) /\ skip (bar * 4) arps) |>
+    take (bar * 13.5) song |>
+    (ramp (bar * 4) 1 0 /\ song) |>
+    silence 5 |>
     empty
 
 song =
-  fmap (* 0.3)$
   mix $
     fmap (* 0.06) melody :
     arps :

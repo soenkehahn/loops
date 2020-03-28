@@ -2,30 +2,33 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Signal (
   module Prelude,
   module Signal,
 ) where
 
-import Data.Function
-import Data.Fixed
-import Data.List (foldl')
 import Control.Exception
+import Control.Monad.ST
+import Data.ByteString.Conversion
+import Data.Fixed
+import Data.Function
+import Data.List (foldl')
+import Data.STRef
 import Data.Vector (Vector, (!), (!?))
 import Epsilon
 import Prelude hiding (take, repeat)
-import qualified Data.ByteString.Builder as Builder
-import qualified Data.ByteString.Conversion as BS
-import qualified Data.ByteString.Lazy as BS hiding (snoc)
+import qualified Data.ByteString.Char8 as BS
 import qualified Data.Vector as Vec
+import System.IO
 import System.Random
 
 -- signal basics
 
 newtype Time = Time {
   fromTime :: Double
-} deriving (Num, Fractional)
+} deriving (Num, Fractional, Enum)
 
 instance Show Time where
   show (Time t) = show t
@@ -41,7 +44,7 @@ maxTime a b = Time $ max (fromTime a) (fromTime b)
 
 data Signal a = Signal {
   end :: Maybe Time,
-  runSignal :: Vector Time -> Vector a
+  initialize :: forall s . ST s (Time -> ST s a)
 } deriving (Functor)
 
 minEnd :: Signal a -> Signal b -> Maybe Time
@@ -60,28 +63,39 @@ maxEnd a b = case (end a, end b) of
 instance Applicative Signal where
   pure = constant
   fSignal <*> xSignal =
-    Signal (minEnd fSignal xSignal) $ \ times ->
-      Vec.zipWith ($)
-        (runSignal fSignal times)
-        (runSignal xSignal times)
+    Signal (minEnd fSignal xSignal) $ do
+      runF <- initialize fSignal
+      runX <- initialize xSignal
+      return $ \ time -> do
+        runF time <*> runX time
 
-toVector :: Time -> Signal a -> Vector a
-toVector delta signal = case end signal of
-  Just end -> runSignal signal (deltas delta end)
-  Nothing -> error "toVector: infinite signals not supported"
+deltas :: Time -> Maybe Time -> [Time]
+deltas delta end = case end of
+  Just end -> takeWhile (`lt` end) [0, delta ..]
+  Nothing -> [0, delta ..]
 
-deltas :: Time -> Time -> Vector Time
-deltas delta end = Vec.unfoldr (\ current -> if current `lt` end then Just (current, current + delta) else Nothing) 0
+runOnDeltas :: Signal a -> [Time] -> [a]
+runOnDeltas signal deltas = runST $ do
+    runSignal <- initialize signal
+    mapM runSignal deltas
 
-toByteString :: forall a . BS.ToByteString a => Time -> Signal a -> BS.ByteString
-toByteString delta signal = Builder.toLazyByteString $ Vec.foldl' inner mempty $ toVector delta signal
-  where
-    inner :: Builder.Builder -> a -> Builder.Builder
-    inner acc sample =
-      acc <> Builder.lazyByteString (BS.toByteString sample) <> Builder.char7 '\n'
+toList :: Time -> Signal a -> [a]
+toList delta signal = runOnDeltas signal $ deltas delta (end signal)
+
+foreach :: Signal a -> [Time] -> (a -> IO ()) -> IO ()
+foreach signal deltas action = mapM_ action $ runOnDeltas signal deltas
+
+printSamples :: Signal Double -> IO ()
+printSamples signal = do
+  case (end signal) of
+    Nothing -> error "infinite signal"
+    Just end -> do
+      hPutStrLn stderr ("length: " ++ show end)
+      foreach signal (deltas (1 / 44100) (Just end)) $ \ sample -> do
+        BS.putStrLn $ toByteString' sample
 
 constant :: a -> Signal a
-constant a = Signal Nothing $ \ times -> fmap (const a) times
+constant a = Signal Nothing $ return $ \ _time -> return a
 
 take :: Time -> Signal a -> Signal a
 take length (Signal mEnd signal) = Signal end' signal
@@ -91,24 +105,31 @@ take length (Signal mEnd signal) = Signal end' signal
       Just end -> minTime end length
 
 skip :: Time -> Signal a -> Signal a
-skip length (Signal end signal) =
-  Signal
-    (fmap (\ signalEnd -> maxTime 0 (signalEnd - length)) end)
-    (\ times -> signal $ fmap (+ length) times)
+skip length signal =
+  Signal (fmap (\ end -> maxTime 0 (end - length)) (end signal)) $ do
+    runSignal <- initialize signal
+    return $ \ time -> do
+      runSignal (time + length)
 
 fromList :: Time -> [a] -> Signal a
 fromList delta (Vec.fromList -> vec) =
   Signal
     (Just $ fromIntegral (length vec) * delta)
-    (fmap $ \ time -> vec ! floor (fromTime time / fromTime delta))
+    (return $ \ time -> return $ vec ! floor (fromTime time / fromTime delta))
 
-random :: forall a . Random a => (a, a) -> Signal a
+random :: Random a => (a, a) -> Signal a
 random bounds =
-  Signal Nothing $ \ times ->
-    Vec.unfoldrN (Vec.length times) (\ gen -> Just (randomR bounds gen)) (mkStdGen 42)
+  Signal Nothing $ do
+    genRef <- newSTRef (mkStdGen 42)
+    return $ \ _time -> do
+      gen <- readSTRef genRef
+      let (sample, newGen) = randomR bounds gen
+      writeSTRef genRef newGen
+      return sample
 
 empty :: Signal a
-empty = Signal (Just 0) (fmap (\ _time -> error "empty: shouldn't be called"))
+empty = Signal (Just 0) $ return $ \ time ->
+  error ("empty: shouldn't be called. (" ++ show time ++ ")")
 
 -- audio signals
 
@@ -116,7 +137,8 @@ tau :: Double
 tau = pi * 2
 
 phase :: Signal Double
-phase = Signal Nothing $ fmap $ \ time -> (fromTime time `mod'` 1) * tau
+phase = Signal Nothing $ return $ \ time ->
+  return $ (fromTime time `mod'` 1) * tau
 
 project :: (Double, Double) -> (Double, Double) -> Double -> Double
 project (fromLow, fromHigh) (toLow, toHigh) x =
@@ -125,32 +147,42 @@ project (fromLow, fromHigh) (toLow, toHigh) x =
 clip :: (Double, Double) -> Double -> Double
 clip (lower, upper) x = max lower (min upper x)
 
-speedup :: forall a . Signal Double -> Signal a -> Signal a
+speedup :: Signal Double -> Signal a -> Signal a
 speedup factorSignal inputSignal = case end inputSignal of
-  Nothing -> Signal (end factorSignal) $ \ times ->
-    runSignal inputSignal (integral times (runSignal (fmap Time factorSignal) times))
+  Nothing -> Signal (end factorSignal) $ do
+    runFactorSignal <- initialize $ integral factorSignal
+    runInputSignal <- initialize inputSignal
+    return $ \ time -> do
+      integrated <- runFactorSignal time
+      runInputSignal $ Time integrated
   Just _ -> error "speedup not supported for finite input signals"
 
-integral :: Num a => Vector a -> Vector a -> Vector a
-integral xs ys = Vec.constructN (Vec.length xs) $ \ acc ->
-  case Vec.length acc of
-    0 -> 0
-    index -> lastArea + ((time - lastTime) * y)
-      where
-        lastArea = acc ! pred index
-        time = xs ! index
-        lastTime = xs ! pred index
-        y = ys ! index
+
+integral :: Signal Double -> Signal Double
+integral signal = Signal (end signal) $ do
+  ref <- newSTRef 0
+  lastTimeRef <- newSTRef 0
+  runSignal <- initialize signal
+  return $ \ time -> do
+    lastTime <- readSTRef lastTimeRef
+    writeSTRef lastTimeRef time
+    current <- readSTRef ref
+    factor <- runSignal time
+    let next = current + (fromTime time - fromTime lastTime) * factor
+    writeSTRef ref next
+    return next
 
 (|>) :: Signal a -> Signal a -> Signal a
 a |> b = case end a of
   Nothing -> a
   Just aEnd ->
-    Signal (fmap (+ aEnd) (end b)) $ \ times ->
-      let (aTimes, bTimes) = Vec.span (`lt` aEnd) times
-      in
-        runSignal a aTimes <>
-        runSignal b (fmap (subtract aEnd) bTimes)
+    Signal (fmap (+ aEnd) (end b)) $ do
+      runA <- initialize a
+      runB <- initialize b
+      return $ \ time -> do
+        if time `lt` aEnd
+          then runA time
+          else runB (time - aEnd)
 
 repeat :: Integer -> Signal a -> Signal a
 repeat n signal =
@@ -160,13 +192,21 @@ repeat n signal =
 
 (+++) :: Num a => Signal a -> Signal a -> Signal a
 a +++ b =
-  Signal (maxEnd a b) $ \ times ->
-    zipWithOverlapping (+)
-      (runSignal a $ takeValidTimes (end a) times)
-      (runSignal b $ takeValidTimes (end b) times)
-  where
-    takeValidTimes :: Maybe Time -> Vector Time -> Vector Time
-    takeValidTimes end times = maybe times (\ end -> Vec.takeWhile (`lt` end) times) end
+  let isValidTime :: Signal a -> Time -> Bool
+      isValidTime signal time = case end signal of
+        Nothing -> True
+        Just end -> time `lt` end
+  in Signal (maxEnd a b) $ do
+    runA <- initialize a
+    runB <- initialize b
+    return $ \ time -> do
+      x <- if isValidTime a time
+        then runA time
+        else return 0
+      y <- if isValidTime b time
+        then runB time
+        else return 0
+      return (x + y)
 
 mix :: Num a => [Signal a] -> Signal a
 mix = foldl' (+++) empty
@@ -200,9 +240,8 @@ rect = fmap (\ x -> if x < tau / 2 then -1 else 1) phase
 
 ramp :: Time -> Double -> Double -> Signal Double
 ramp length _ _ | length ==== 0 = empty
-ramp length start end =
-  Signal (Just length) $ fmap $ \ time ->
-    (fromTime time / fromTime length) * (end - start) + start
+ramp length start end = Signal (Just length) $ return $ \ time ->
+  return $ (fromTime time / fromTime length) * (end - start) + start
 
 data Adsr = Adsr {
   attack :: Time,
