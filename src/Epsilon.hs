@@ -48,3 +48,7 @@ instance EpsilonEq a => EpsilonEq (Maybe a) where
   Nothing ==== Nothing = True
   Just a ==== Just b = a ==== b
   _ ==== _ = False
+
+instance (EpsilonEq a, EpsilonEq b) => EpsilonEq (a, b) where
+  (a, b) ==== (x, y) =
+    a ==== x && b ==== y

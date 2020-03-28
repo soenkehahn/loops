@@ -18,7 +18,7 @@ import Data.List (foldl')
 import Data.STRef
 import Data.Vector (Vector, (!), (!?))
 import Epsilon
-import Prelude hiding (take, repeat)
+import Prelude hiding (take, repeat, zip, zipWith)
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Vector as Vec
 import System.IO
@@ -133,6 +133,24 @@ random bounds =
 empty :: Signal a
 empty = Signal (Just 0) $ return $ \ time ->
   error ("empty: shouldn't be called. (" ++ show time ++ ")")
+
+zip :: Signal a -> Signal b -> Signal (a, b)
+zip a b = Signal (minEnd a b) $ do
+  runA <- initialize a
+  runB <- initialize b
+  return $ \ time -> do
+    a <- runA time
+    b <- runB time
+    return (a, b)
+
+zipWith :: (a -> b -> c) -> Signal a -> Signal b -> Signal c
+zipWith f a b = Signal (minEnd a b) $ do
+  runA <- initialize a
+  runB <- initialize b
+  return $ \ time -> do
+    a <- runA time
+    b <- runB time
+    return $ f a b
 
 -- audio signals
 

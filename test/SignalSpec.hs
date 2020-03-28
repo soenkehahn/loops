@@ -52,6 +52,11 @@ spec = do
       let signal = focus 0.2 0.5 $ ramp 1 0 1
       test 0.1 2 signal [0.2, 0.3, 0.4, 0.5, 0.6]
 
+  describe "zip" $ do
+    it "zips two signals together" $ do
+      let signal = zip (constant 23) (constant 42)
+      test 0.5 1 signal [(23, 42), (23, 42) :: (Double, Double)]
+
   describe "phase" $ do
     it "ramps up to TAU in one second" $ do
       phase `shouldYield` [0, tau / 2, 0]

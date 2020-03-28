@@ -22,10 +22,8 @@ pointed = beat * 3 / 4
 
 loop :: Signal Double
 loop =
-  fmap (* 0.3) $
-  -- take 3 $
-  -- skip (bar * 9.5) $
-  -- take (sum $ map partLength (allValues :: [Part])) $
+  fmap (* 0.2) $
+  -- focus (bar * 8) (bar * 5.5) $
     ((ramp (bar * 4) 0 1 |> take (bar * 5.5) (constant 1)) /\ skip (bar * 4) arps) |>
     take (bar * 13.5) song |>
     (ramp (bar * 4) 1 0 /\ song) |>
@@ -38,6 +36,7 @@ song =
     arps :
     snares :
     bass :
+    chords :
     []
 
 
@@ -184,10 +183,10 @@ snares =
         & fmap (* 0.3)
 
 bass =
-  skip 0.02 $ orchestrate partA
+  skip 0.02 $ orchestrate part
   where
-    partA :: Part -> Signal Double
-    partA part = case part of
+    part :: Part -> Signal Double
+    part part = case part of
       A (G One) -> fill 3 (n g) |> n f
       A (G Two) -> n g
       A (G Three) -> fill 3 (n g) |> n f
@@ -215,3 +214,44 @@ bass =
       speedup (constant frequency +++ (take (beat / 8) (constant 0) |> ramp (beat / 8) 0 (-7))) $
       fmap (clip (-1, 1) . (* 7)) $
       saw
+
+chords = fmap (* 0.2) $ orchestrate $ \case
+  B BI ->
+    fill pointed (n eflat +++ n c) |>
+    fill pointed (n d +++ n bflat) |>
+    adsr (bar * 7 / 4) (Adsr 0 0 1 (bar / 2)) (ln True c +++ ln False aflat')
+  B BII ->
+    fill pointed (n eflat +++ n c) |>
+    empty
+  _ -> empty
+  where
+    g = 200
+    bflat = g * 1.2
+    c = g * 4 / 3
+    d = bflat * 5 / 4
+    eflat = c * 1.2
+    aflat' = 2 * bflat * 7 / 8
+
+    n frequency =
+      adsr 0.4 (Adsr 0.05 0.0 1 0.05) $
+      wave frequency
+
+    ln cos frequency =
+      (tremolo cos /\) $
+      speedup (ramp (bar / 4) 0.9 1 |> constant 1) $
+      wave frequency
+
+    tremolo cos =
+      zipWith
+        (\ foo trem -> project (-1, 1) (foo, 1) trem)
+        level
+        (constSpeedup (fromTime (16 / bar)) (if cos then skip 0.5 rect else rect))
+
+    level =
+      take (bar / 4) (constant 1) |>
+      ramp (bar / 2) 1 tremoloLevel |>
+      constant tremoloLevel
+    tremoloLevel = 0.5
+
+    wave frequency =
+      constSpeedup frequency rect
