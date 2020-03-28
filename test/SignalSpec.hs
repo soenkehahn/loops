@@ -4,7 +4,7 @@ import Epsilon
 import Loop ()
 import Prelude ()
 import Signal
-import Test.Hspec
+import Test.Hspec hiding (focus)
 import Test.Utils
 
 shouldYield :: (Show a, EpsilonEq a) => Signal a -> [a] -> IO ()
@@ -47,6 +47,11 @@ spec = do
       let signal = skip 0.2 $ ramp 1 0 1
       test 0.1 2 signal [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
+  describe "focus" $ do
+    it "focusses on the given time window" $ do
+      let signal = focus 0.2 0.5 $ ramp 1 0 1
+      test 0.1 2 signal [0.2, 0.3, 0.4, 0.5, 0.6]
+
   describe "phase" $ do
     it "ramps up to TAU in one second" $ do
       phase `shouldYield` [0, tau / 2, 0]
@@ -78,6 +83,12 @@ spec = do
 
     it "always starts with 0" $ do
       test 1 1 (integral (constant 42)) [0 :: Double]
+
+  describe "constSpeedup" $ do
+    it "speeds the signal up by a constant" $ do
+      let signal = constSpeedup 2 $ ramp 1 0 1
+      end signal `shouldBe` Just 0.5
+      test 0.1 10 signal [0, 0.2, 0.4, 0.6, 0.8 :: Double]
 
   describe "applicative interface" $ do
     it "<*> and <$> work" $ do

@@ -28,7 +28,7 @@ import System.Random
 
 newtype Time = Time {
   fromTime :: Double
-} deriving (Num, Fractional, Enum)
+} deriving (Eq, Num, Fractional, Enum)
 
 instance Show Time where
   show (Time t) = show t
@@ -111,6 +111,9 @@ skip length signal =
     return $ \ time -> do
       runSignal (time + length)
 
+focus :: Time -> Time -> Signal a -> Signal a
+focus start length signal = take length $ skip start signal
+
 fromList :: Time -> [a] -> Signal a
 fromList delta (Vec.fromList -> vec) =
   Signal
@@ -157,7 +160,6 @@ speedup factorSignal inputSignal = case end inputSignal of
       runInputSignal $ Time integrated
   Just _ -> error "speedup not supported for finite input signals"
 
-
 integral :: Signal Double -> Signal Double
 integral signal = Signal (end signal) $ do
   ref <- newSTRef 0
@@ -171,6 +173,13 @@ integral signal = Signal (end signal) $ do
     let next = current + (fromTime time - fromTime lastTime) * factor
     writeSTRef ref next
     return next
+
+constSpeedup :: Double -> Signal a -> Signal a
+constSpeedup (Time -> factor) signal =
+  Signal (fmap (/ factor) (end signal)) $ do
+    runSignal <- initialize signal
+    return $ \ time -> do
+      runSignal (time * factor)
 
 (|>) :: Signal a -> Signal a -> Signal a
 a |> b = case end a of
