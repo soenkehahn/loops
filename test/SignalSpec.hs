@@ -148,6 +148,11 @@ spec = do
       let signal = constant 3 /\ take 1 (constant 4)
       test 1 3 signal [12 :: Double]
 
+    it "binds tighter than |>" $ do
+      let signal :: Signal Double
+          signal = constant 3 /\ take 1 (constant 4) |> take 1 (constant 5)
+      test 1 10 signal [12, 5]
+
   describe "silence" $ do
     it "returns silences of the given length" $ do
       test 1 4 (silence 3) [0, 0, 0 :: Integer]
