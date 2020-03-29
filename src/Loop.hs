@@ -23,7 +23,7 @@ pointed = beat * 3 / 4
 loop :: Signal Double
 loop =
   fmap (* 0.2) $
-  -- focus (bar * 8) (bar * 5.5) $
+  -- focus (bar * 10) (bar * 3.5) $
     ((ramp (bar * 4) 0 1 |> take (bar * 5.5) (constant 1)) /\ skip (bar * 4) arps) |>
     take (bar * 13.5) song |>
     (ramp (bar * 4) 1 0 /\ song) |>
@@ -197,11 +197,14 @@ bass =
       A (C Four) -> n c |> n bflat |> n c
       B BI -> fill (bar / 2) $
         fill pointed (n c) |> fill pointed (n bflat) |> n aflat
-      B BII -> fill bar $
-        fill pointed (n aflat) |> fill pointed (n g) |> n f
+      B BII ->
+        fill pointed (n aflat) |> fill pointed (n g) |>
+        fill (beat * 0.5) (n f) |> silence (beat * 3.75) |> fill (beat * 0.25) (n eflat) |>
+        n f
       B BIII -> fill bar $
         n fsharp
 
+    eflat = f * 7 / 8
     f = g * 7 / 8
     fsharp = ((50 * 3 / 2) * 5 / 4) / 2
     g = 50
@@ -215,43 +218,69 @@ bass =
       fmap (clip (-1, 1) . (* 7)) $
       saw
 
-chords = fmap (* 0.2) $ orchestrate $ \case
+chords = fmap (* 0.13) $ orchestrate $ \case
   B BI ->
-    fill pointed (n eflat +++ n c) |>
-    fill pointed (n d +++ n bflat) |>
-    adsr (bar * 7 / 4) (Adsr 0 0 1 (bar / 2)) (ln True c +++ ln False aflat')
+    fill pointed (n eflat' +++ n c') |>
+    fill pointed (n d' +++ n bflat) |>
+    adsr (bar * 7 / 4) (Adsr 0 0 1 (bar / 2)) (ln True c' +++ ln False aflat')
   B BII ->
-    fill pointed (n eflat +++ n c) |>
+    fill pointed (n aflat' +++ n eflat') |>
+    fill pointed (n g' +++ n d') |>
+    adsr (bar * 3.125) (Adsr 0 0 1 (bar / 2)) (
+      lns True (
+        take (beat * 0.5 + beat * 4 + beat * 3.5) (constant f') |>
+        ramp (beat * 1) f' fsharp' |>
+        constant fsharp' |>
+        constant 0
+      ) +++
+      lns False (
+        take (beat * 4) (constant aflat') |>
+        ramp (beat * 1) aflat' a' |> take (beat * 3) (constant a') |>
+        ramp (beat * 1) a' c'' |>
+        constant c'' |>
+        constant 0
+      )
+    ) |>
     empty
   _ -> empty
   where
     g = 200
     bflat = g * 1.2
-    c = g * 4 / 3
-    d = bflat * 5 / 4
-    eflat = c * 1.2
+    c' :: Double
+    c' = g * 4 / 3
+    d' = bflat * 5 / 4
+    eflat' = c' * 1.2
+    f' = g' * 7 / 8
+    fsharp' = d' * 5 / 4
+    g' = g * 2
     aflat' = 2 * bflat * 7 / 8
+    a' = f' * 5 / 4
+    c'' = c' * 2
 
     n frequency =
       adsr 0.4 (Adsr 0.05 0.0 1 0.05) $
-      wave frequency
+      wave (constant frequency)
 
-    ln cos frequency =
+    ln :: Bool -> Double -> Signal Double
+    ln cos frequency = lns cos (constant frequency)
+
+    lns :: Bool -> Signal Double -> Signal Double
+    lns cos frequency =
       (tremolo cos /\) $
       speedup (ramp (bar / 4) 0.9 1 |> constant 1) $
       wave frequency
 
     tremolo cos =
       zipWith
-        (\ foo trem -> project (-1, 1) (foo, 1) trem)
-        level
+        (\ lowLevel wave -> project (-1, 1) (lowLevel, 1) wave)
+        tremoloLowLevel
         (constSpeedup (fromTime (16 / bar)) (if cos then skip 0.5 rect else rect))
 
-    level =
+    tremoloLowLevel =
       take (bar / 4) (constant 1) |>
-      ramp (bar / 2) 1 tremoloLevel |>
-      constant tremoloLevel
-    tremoloLevel = 0.5
+      ramp (bar / 2) 1 tremoloMinLevel |>
+      constant tremoloMinLevel
+    tremoloMinLevel = 0.5
 
     wave frequency =
-      constSpeedup frequency rect
+      speedup frequency rect
