@@ -23,7 +23,7 @@ pointed = beat * 3 / 4
 loop :: Signal Double
 loop =
   fmap (* 0.2) $
-  -- focus (bar * 10) (bar * 3.5) $
+  -- focus (bar * 17.5) (bar * 7) $
     ((ramp (bar * 4) 0 1 |> take (bar * 5.5) (constant 1)) /\ skip (bar * 4) arps) |>
     take (bar * 13.5) song |>
     (ramp (bar * 4) 1 0 /\ song) |>
@@ -218,26 +218,25 @@ bass =
       fmap (clip (-1, 1) . (* 7)) $
       saw
 
-chords = fmap (* 0.13) $ orchestrate $ \case
+chords = fmap (* 0.11) $ orchestrate $ \case
   B BI ->
     fill pointed (n eflat' +++ n c') |>
     fill pointed (n d' +++ n bflat) |>
-    adsr (bar * 7 / 4) (Adsr 0 0 1 (bar / 2)) (ln True c' +++ ln False aflat')
+    adsr (bar * 7 / 4) (Adsr 0 0 1 (bar / 2)) (ln True 4 c' +++ ln False 4 aflat')
   B BII ->
     fill pointed (n aflat' +++ n eflat') |>
     fill pointed (n g' +++ n d') |>
-    adsr (bar * 3.125) (Adsr 0 0 1 (bar / 2)) (
-      lns True (
+    adsr (bar * 3.125) (Adsr 0 0 1 (bar * 2)) (
+      lns True 3 (
         take (beat * 0.5 + beat * 4 + beat * 3.5) (constant f') |>
         ramp (beat * 1) f' fsharp' |>
         constant fsharp' |>
         constant 0
       ) +++
-      lns False (
+      lns False 3 (
         take (beat * 4) (constant aflat') |>
         ramp (beat * 1) aflat' a' |> take (beat * 3) (constant a') |>
-        ramp (beat * 1) a' c'' |>
-        constant c'' |>
+        constant a' |>
         constant 0
       )
     ) |>
@@ -255,26 +254,25 @@ chords = fmap (* 0.13) $ orchestrate $ \case
     g' = g * 2
     aflat' = 2 * bflat * 7 / 8
     a' = f' * 5 / 4
-    c'' = c' * 2
 
     n frequency =
       adsr 0.4 (Adsr 0.05 0.0 1 0.05) $
       wave (constant frequency)
 
-    ln :: Bool -> Double -> Signal Double
-    ln cos frequency = lns cos (constant frequency)
+    ln :: Bool -> Time -> Double -> Signal Double
+    ln cos perBeat frequency = lns cos perBeat (constant frequency)
 
-    lns :: Bool -> Signal Double -> Signal Double
-    lns cos frequency =
-      (tremolo cos /\) $
+    lns :: Bool -> Time -> Signal Double -> Signal Double
+    lns cos perBeat frequency =
+      (tremolo cos perBeat /\) $
       speedup (ramp (bar / 4) 0.9 1 |> constant 1) $
       wave frequency
 
-    tremolo cos =
+    tremolo cos perBeat =
       zipWith
         (\ lowLevel wave -> project (-1, 1) (lowLevel, 1) wave)
         tremoloLowLevel
-        (constSpeedup (fromTime (16 / bar)) (if cos then skip 0.5 rect else rect))
+        (constSpeedup (fromTime (perBeat / beat)) (if cos then skip 0.5 rect else rect))
 
     tremoloLowLevel =
       take (bar / 4) (constant 1) |>
