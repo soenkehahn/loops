@@ -18,7 +18,7 @@ import Data.List (foldl')
 import Data.STRef
 import Data.Vector (Vector, (!), (!?))
 import Epsilon
-import Prelude hiding (take, repeat, zip, zipWith)
+import Prelude hiding (take, repeat, cycle, zip, zipWith)
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Vector as Vec
 import System.IO
@@ -28,7 +28,7 @@ import System.Random
 
 newtype Time = Time {
   fromTime :: Double
-} deriving (Eq, Num, Fractional, Enum)
+} deriving (Num, Fractional, Enum)
 
 instance Show Time where
   show (Time t) = show t
@@ -216,6 +216,14 @@ repeat n signal =
   if n <= 0
     then empty
     else signal |> repeat (n - 1) signal
+
+cycle :: Signal a -> Signal a
+cycle signal = case end signal of
+  Nothing -> signal
+  Just end -> Signal Nothing $ do
+    runSignal <- initialize signal
+    return $ \ time ->
+      runSignal $ Time (fromTime time `mod'` fromTime end)
 
 (+++) :: Num a => Signal a -> Signal a -> Signal a
 a +++ b =

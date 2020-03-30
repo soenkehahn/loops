@@ -92,7 +92,7 @@ spec = do
   describe "constSpeedup" $ do
     it "speeds the signal up by a constant" $ do
       let signal = constSpeedup 2 $ ramp 1 0 1
-      end signal `shouldBe` Just 0.5
+      end signal `shouldBeCloseTo` Just 0.5
       test 0.1 10 signal [0, 0.2, 0.4, 0.6, 0.8 :: Double]
 
   describe "applicative interface" $ do
@@ -117,6 +117,16 @@ spec = do
   describe "repeat" $ do
     it "repeats a signal n times" $ do
       test 1 10 (repeat 3 (take 1 (constant 42))) [42, 42, 42 :: Integer]
+
+  describe "cycle" $ do
+    it "repeats a signal infinitely" $ do
+      let signal = cycle (ramp 1 0 1)
+      test 0.5 3 signal [0, 0.5, 0, 0.5, 0, 0.5]
+      end signal `shouldBeCloseTo` Nothing
+
+    it "works for infinite signals" $ do
+      let signal = cycle (ramp 1 0 1 |> constant 23)
+      test 0.5 2 signal [0, 0.5, 23, 23]
 
   describe "+++" $ do
     it "adds two signals" $ do

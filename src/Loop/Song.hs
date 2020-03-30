@@ -65,9 +65,12 @@ melody =
 
     inBars length signals = foldl' (|>) empty $ map (fill length) signals
 
-arps =
-  echo 0.31 0.5 $
-    orchestrate arp
+arps = arpsEcho arpsWithoutEcho
+
+arpsEcho = echo 0.31 0.5
+
+arpsWithoutEcho =
+  orchestrate arp
   where
     arp part =
       foldl' (\ acc frequency -> acc |> note frequency) empty $ fmap (* 200) $
