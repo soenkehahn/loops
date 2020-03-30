@@ -45,10 +45,15 @@ percussion =
   fmap (* 0.13) $
   runSnippet $
     mempty
-    <> 0
-      |-> rhythm tchak |> rhythm tchak
-    <> bar
-      |-> rhythm tchak |> rhythm tchak
+    <> 0 |->
+      repeat 3
+        (rhythm tchak |> rhythm tchak)
+    <> (bar * 2.5) |->
+      ramp (bar / 2) 0 1 /\ kicks |>
+      repeat 42
+        (kick |> fmap (* 0.1) kick |> fmap (* 0.5) kick |> fmap (* 0.6) kick) |>
+      kick
+
   where
     rhythm signal =
       fill (bar / 2) $
@@ -70,3 +75,13 @@ percussion =
 
     s frequency =
       speedup (ramp 0.1001 frequency (frequency * 0.93)) sine
+
+    kicks = repeat 1000 kick
+    kick =
+      fmap (* 0.6) $
+      fill (beat / 8) $
+      adsr 0.3 (Adsr 0.0001 0.05 0 0) $
+        random (-1, 1) +++
+        constSpeedup 17000 rect +++
+        constSpeedup 16000 rect +++
+        constSpeedup 15000 rect
