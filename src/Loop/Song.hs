@@ -10,6 +10,7 @@ import Data.List (foldl')
 import Prelude ()
 import Signal
 import Transformations
+import Snippet
 
 bar :: Time
 bar = 3.2
@@ -198,31 +199,31 @@ bass =
       fmap (clip (-1, 1) . (* 7)) $
       saw
 
-chords = fmap (* 0.11) $ orchestrate $ \case
-  B BI ->
+chords = fmap (* 0.11) $ runSnippet $
+  mempty
+  <> (bar * 8 - skipValue) |->
     fill pointed (n eflat' +++ n c') |>
     fill pointed (n d' +++ n bflat) |>
     adsr (bar * 7 / 4) (Adsr 0 0 1 (bar / 2)) (ln True 4 c' +++ ln False 4 aflat')
-  B BII ->
+  <> (bar * (8 + 2) - skipValue) |->
     fill pointed (n aflat' +++ n eflat') |>
     fill pointed (n g' +++ n d') |>
-    adsr (bar * 3.125) (Adsr 0 0 1 (bar * 2)) (
+    adsr (bar * (3.125 + 0.5)) (Adsr 0 0 1 (bar * 2.5)) (
       lns True 3 (
         take (beat * 0.5 + beat * 4 + beat * 3.5) (constant f') |>
         ramp (beat * 1) f' fsharp' |>
-        constant fsharp' |>
-        constant 0
+        constant fsharp'
       ) +++
       lns False 3 (
         take (beat * 4) (constant aflat') |>
         ramp (beat * 1) aflat' a' |> take (beat * 3) (constant a') |>
-        constant a' |>
-        constant 0
+        constant a'
       )
     ) |>
     empty
-  _ -> empty
   where
+    skipValue = 0.02
+
     g = 200
     bflat = g * 1.2
     c' :: Double
@@ -236,7 +237,7 @@ chords = fmap (* 0.11) $ orchestrate $ \case
     a' = f' * 5 / 4
 
     n frequency =
-      adsr 0.4 (Adsr 0.05 0.0 1 0.05) $
+      adsr 0.4 (Adsr 0.03 0.0 1 0.05) $
       wave (constant frequency)
 
     ln :: Bool -> Time -> Double -> Signal Double

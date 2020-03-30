@@ -18,8 +18,8 @@ main = do
 loop :: Signal Double
 loop =
   fmap (* 0.2) $
-  -- constSpeedup 0.5 $
-  -- focus secondVerse (bar * 2) $
+  -- constSpeedup 0.8 $
+  -- focus (secondVerse - 5.5 * bar) (bar * 16) $
   runSnippet $
     mempty
     <> 0 |-> intro
