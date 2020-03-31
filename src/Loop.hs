@@ -19,7 +19,7 @@ loop :: Signal Double
 loop =
   fmap (* 0.2) $
   -- constSpeedup 0.8 $
-  -- focus outro (bar * 100) $
+  -- focus (secondVerse + bar * 7) (bar * 6.5) $
   runSnippet $
     mempty
     <> 0 |-> intro
@@ -49,10 +49,9 @@ percussion =
       repeat 3
         (rhythm tchak |> rhythm tchak)
     <> (bar * 2.5) |->
-      ramp (bar / 2) 0 1 /\ kicks |>
-      repeat 42
-        kicksHalfBeat |>
-      kick
+      (ramp (bar / 2) 0 1 /\ kicks) |>
+      take (bar * (5 + 3.5)) (cycle kicksHalfBeat) |>
+      (ramp (bar * 1.5) 1 0 /\ cycle kicksHalfBeat)
 
   where
     rhythm signal =
@@ -81,7 +80,6 @@ kicksHalfBeat =
   fmap (* 0.1) kick |>
   fmap (* 0.5) kick |>
   fmap (* 0.6) kick
-
 kicks = cycle kick
 kick =
   fmap (* 0.6) $
