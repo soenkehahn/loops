@@ -1,0 +1,32 @@
+name: leeloo
+ghc-options:
+  - -fdefer-typed-holes
+  # - -fdefer-type-errors
+  - -O1
+  - -Wall
+  - -Wno-name-shadowing
+default-extensions:
+  - Strict
+
+dependencies:
+  - base
+  - bytestring
+  - bytestring-conversion
+  - random
+  - vector
+
+executables:
+  leeloo:
+    main: main.hs
+    source-dirs:
+      - src
+
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs:
+      - test
+      - src
+    dependencies:
+      - hspec
+      - HUnit
