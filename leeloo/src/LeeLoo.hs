@@ -13,47 +13,58 @@ import Data.List hiding (take)
 
 leeloo :: Signal Double
 leeloo =
-  -- focus 0 2 $
+  -- focus 0 (l 38) $
   fmap (* 0.03) $
   runSnippet $
     mempty
-    <> 0 |->
-      chord [e'', bflat'', d''', g''']
-    <> 2 |->
-      chord [a', g'', csharp''', f''']
-    <> 4 |->
-      chord [bflat', a'', d''', g''']
-    <> 6 |->
-      chord [b', g'', d''', f''']
-    <> 8 |->
+    <> l 0 |-> partA
+    <> l 8 |-> partA
+    <> l 16 |-> partB
+    <> l 30 |-> partA
+
+partA =
+  runSnippet $
+    mempty
+    <> l 0 |->
+      chord [f'', c''', e''', a''']
+    <> l 1 |->
+      chord [f'', c''', e''', a''']
+    <> l 2 |->
+      chord [f'', c''', e''', a''']
+    <> l 3 |->
+      chord [bflat', d''', f''', a''']
+    <> l 4 |->
+      chord [f'', c''', e''', a''']
+    <> l 5 |->
       chord [c'', bflat'', e''', g''']
-    <> 10 |->
-      chord [csharp'', a'', e''', g''']
-    <> 12 |->
-      chord [d'', bflat'', f''', a''']
-    <> 14 |->
-      chord [b', g'', d''', f''']
-    <> 16 |->
+    <> l 6 |->
+      chord [f'', c''', e''', a''']
+    <> l 7 |->
       chord [c'', bflat'', e''', g''']
-    <> 18 |->
-      chord [csharp'', a'', e''', g''']
-    <> 20 |->
-      chord [d'', bflat'', f''', a''']
-    <> 22 |->
-      chord [b', g'', d''', f''']
-    <> 24 |->
-      chord [c'', bflat'', e''', g''']
-    <> 26 |->
-      chord [csharp'', a'', e''', g''']
-    <> 28 |->
-      chord [d'', b'', f''', a''']
-    <> 30 |->
-      chord [b', aflat'', d''', f''']
+
+l n = 3 * n
+
+partB = runSnippet $
+  mempty
+  <> l 0 |-> chord [bflat', a'', d''', f''']
+  <> l 1 |-> chord [b', aflat'', d''', f''']
+  <> l 2 |-> chord [c'', a'', e''', f''']
+  <> l 3 |-> chord [c'', a'', eflat''', f''']
+  <> l 4 |-> chord [bflat', a'', d''', f''']
+  <> l 5 |-> chord [bflat', aflat'', dflat''', f''']
+  <> l 6 |-> chord [a', g'', c''', e''']
+  <> l 7 |-> chord [d'', fsharp'', c''', e''']
+  <> l 8 |-> chord [bflat', a'', d''', f''']
+  <> l 9 |-> chord [bflat', aflat'', dflat''', f''']
+  <> l 10 |-> chord [a', g'', c''', e''']
+  <> l 11 |-> chord [d'', fsharp'', c''', e''']
+  <> l 12 |-> chord [g', f'', bflat'', d''']
+  <> l 13 |-> chord [c'', e'', bflat'', d''']
 
 chord frequencies =
-  fanOut (adsr 2.3 (Adsr 0.01 0.2 0.7 1) . note) frequencies
+  fanOut (adsr 3.3 (Adsr 0.01 0.2 0.7 1) . note) frequencies
 
-note frequency = harmonics [1, 0.5, 0.9, 0.3, 0.8] frequency
+note frequency = harmonics [1, 0.5, 0.9, 0.3, 0.6] frequency
 
 harmonics :: [Double] -> Double -> Signal Double
 harmonics weights frequency =

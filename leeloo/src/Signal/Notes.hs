@@ -39,6 +39,7 @@ eflat''   = pitch 27 c
 e''       = pitch 28 c
 f''       = pitch 29 c
 fsharp''  = pitch 30 c
+gflat''   = fsharp''
 g''       = pitch 31 c
 aflat''   = pitch 32 c
 a''       = pitch 33 c

@@ -1,5 +1,5 @@
 #!/usr/bin/env stack
-{- stack script --resolver lts-15.5 -}
+{- stack script --resolver lts-14.3 -}
 
 import Development.Shake
 import Data.Foldable
