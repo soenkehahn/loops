@@ -225,6 +225,7 @@ cycle signal = case end signal of
     return $ \ time ->
       runSignal $ Time (fromTime time `mod'` fromTime end)
 
+infixr 6 +++
 (+++) :: Num a => Signal a -> Signal a -> Signal a
 a +++ b =
   let isValidTime :: Signal a -> Time -> Bool

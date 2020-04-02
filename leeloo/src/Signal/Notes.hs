@@ -6,7 +6,9 @@ pitch n frequency = frequency * 2 ** (fromIntegral n / 12)
 c, dflat, d, eflat, e, f, fsharp, g, aflat, a, bflat, b :: Double
 c', dflat', d', eflat', e', f', fsharp', g', aflat', a', bflat', b' :: Double
 c'', dflat'', d'', eflat'', e'', f'', fsharp'', g'', aflat'', a'', bflat'', b'' :: Double
+csharp'', gflat'' :: Double
 c''', dflat''', d''', eflat''', e''', f''', fsharp''', g''', aflat''', a''', bflat''', b''' :: Double
+csharp''' :: Double
 c         = pitch (- 45) 440
 dflat     = pitch  1 c
 d         = pitch  2 c
