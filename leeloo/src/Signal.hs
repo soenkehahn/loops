@@ -21,6 +21,7 @@ import Signal.Epsilon
 import Prelude hiding (take, repeat, cycle, zip, zipWith)
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Vector as Vec
+import qualified Data.Vector.Storable as VS
 import System.IO
 import System.Random
 
@@ -159,7 +160,11 @@ tau = pi * 2
 
 phase :: Signal Double
 phase = Signal Nothing $ return $ \ time ->
-  return $ (fromTime time `mod'` 1) * tau
+  return $ phase_array VS.! (round (fromTime time * 44100) `mod` 44100)
+
+phase_array :: VS.Vector Double
+phase_array = VS.generate 44100 $ \ index ->
+  tau * fromIntegral index / 44100
 
 project :: (Double, Double) -> (Double, Double) -> Double -> Double
 project (fromLow, fromHigh) (toLow, toHigh) x =
@@ -246,15 +251,6 @@ a +++ b =
 
 mix :: Num a => [Signal a] -> Signal a
 mix = foldl' (+++) empty
-
-zipWithOverlapping :: (a -> a -> a) -> Vector a -> Vector a -> Vector a
-zipWithOverlapping f as bs =
-  Vec.generate (max (Vec.length as) (Vec.length bs)) $ \ i ->
-    case (as !? i, bs !? i) of
-      (Just a, Just b) -> f a b
-      (Just a, Nothing) -> a
-      (Nothing, Just b) -> b
-      (Nothing, Nothing) -> error "zipWithOverlapping: shouldn't happen"
 
 (/\) :: Num a => Signal a -> Signal a -> Signal a
 a /\ b = (*) <$> a <*> b
