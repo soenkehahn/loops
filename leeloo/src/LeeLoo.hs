@@ -8,8 +8,6 @@ import Signal.Snippet
 import Signal.Utils
 import Signal.Notes
 import Prelude ()
-import qualified Prelude
-import Data.List (foldl')
 
 l :: Time -> Time
 l n = n * 3
@@ -35,8 +33,8 @@ melody =
       8 ~> \ _ -> constant a'''
      ]),
     3 ~> divide [
-      2 ~> ns (ramp (pitch (-0.5) aflat''') g'''),
-      1 ~> ffmap (* 0.8) (n f''')
+      2 ~> ns (\ t -> ramp (pitch (-0.5) aflat''') g''' t |> constant g'''),
+      1 ~> n f'''
     ],
     24 ~> n d'''
   ]
