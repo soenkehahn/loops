@@ -7,6 +7,7 @@ import Signal
 import Signal.Snippet
 import Signal.Utils
 import Signal.Notes
+import Signal.Transformations
 import Prelude ()
 
 l :: Time -> Time
@@ -14,9 +15,11 @@ l n = n * 3
 
 leeloo :: Signal Double
 leeloo =
-  focus 0 (l 3) $
-  chords +++
+  fmap (* 0.2) $
+  focus 0 (l 4) $
+  silence 0.05 |> chords +++
   melody +++
+  drums +++
   -- tiktok +++
   empty
 
@@ -36,7 +39,11 @@ melody =
       2 ~> ns (\ t -> ramp (pitch (-0.5) aflat''') g''' t |> constant g'''),
       1 ~> n f'''
     ],
-    24 ~> n d'''
+    11 ~> n d''',
+    1 ~> n c''',
+    1 ~> n d''',
+    1 ~> n c''',
+    10 ~> n d'''
   ]
 
   where
@@ -56,9 +63,9 @@ melody =
       speedup (frequency length) wave
 
     nadsr length =
-      adsr (length + 0.3) (Adsr 0.05 0.2 0.5 0.3)
+      adsr (length + 0.3) (Adsr 0.02 0.2 0.5 0.3)
 
-    wave = rect
+    wave = harmonics [1, 0.8, 1, 0.5, 0.9, 0.3, 0.2, 0.1]
 
 
 chords =
@@ -142,3 +149,51 @@ phaser = onFinite inner
     deviation = 0.003
 
     frequency = l 1 / 4
+
+drums :: Signal Double
+drums =
+  evenly (
+    kick :
+    kick :
+    snare :
+    snare :
+    kick :
+    kick :
+    snare :
+    evenly [snare, kick] :
+    kick :
+    kick :
+    snare :
+    snare :
+    kick :
+    kick :
+    snare :
+    evenly [snare, kick] :
+    []) (l 4)
+
+  where
+    kick _len =
+      fmap (compress 0.999) $
+      env len /\
+      speedup (ramp 45 20 len) sine
+
+    len = 0.08
+
+    env :: Time -> Signal Double
+    env len = Signal (Just len) $ return $ \ t ->
+      return $ 1 - (((fromTime t - tweak) / tweak) ** 2)
+      where
+        tweak = fromTime len / 2
+
+    snare _len =
+      fmap (* 0.35) $
+      echo 0.1 0.1 $
+      adsr 0.15 (Adsr 0.01 0.1 0.1 0.01)
+      (random (-1, 1) +++
+       fmap (* 0.25) (speedup (ramp 190 100 0.21) (harmonics [1, 0.2])))
+
+compress :: Double -> Double -> Double
+compress 0 x = x
+compress _ 0 = 0
+compress tweak x | x > 0 = - (((1 - tweak) ** x) - 1) / tweak
+compress tweak x = - compress tweak (- x)

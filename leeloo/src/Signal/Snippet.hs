@@ -26,6 +26,9 @@ data Part a = Part {
 (~>) :: Double -> (Time -> Signal a) -> Part a
 (~>) = Part
 
+(.>) :: Double -> Signal a -> Part a
+weight .> signal = Part weight (const signal)
+
 evenly :: Num a => [Time -> Signal a] -> Time -> Signal a
 evenly parts = divide $ map (Part 1) parts
 
