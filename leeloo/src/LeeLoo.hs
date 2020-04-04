@@ -45,7 +45,7 @@ melody =
     n :: Double -> Time -> Signal Double
     n frequency length =
       nadsr length $
-      constSpeedup frequency rect
+      constSpeedup frequency wave
 
     sn frequency =
       ns $ \ len ->
@@ -55,9 +55,12 @@ melody =
     ns :: (Time -> Signal Double) -> Time -> Signal Double
     ns frequency length =
       nadsr length $
-      speedup (frequency length) rect
+      speedup (frequency length) wave
 
-    nadsr length = adsr (length + 0.3) (Adsr 0.1 0.2 0.7 0.3)
+    nadsr length =
+      adsr (length + 0.3) (Adsr 0.05 0.2 0.5 0.3)
+
+    wave = rect
 
 
 chords =
@@ -108,15 +111,7 @@ partB =
 chord frequencies =
   fanOut (adsr (l 1 * 1.1) (Adsr 0.01 0.2 0.7 1) . note) frequencies
 
-note frequency = harmonics [1, 0.5, 0.9, 0.3, 0.6] frequency
-
-harmonics :: [Double] -> Double -> Signal Double
-harmonics weights frequency =
-  foldl' (\ acc (natural, weight) -> acc +++ tone natural weight) empty $
-    Prelude.zip [1 ..] weights
-  where
-    tone natural weight =
-      fmap (* weight) (constSpeedup (frequency * natural) sine)
+note frequency = constSpeedup frequency $ harmonics [1, 0.5, 0.9, 0.3, 0.6]
 
 tiktok :: Signal Double
 tiktok =
