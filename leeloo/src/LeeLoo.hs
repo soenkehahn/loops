@@ -7,14 +7,58 @@ import Signal
 import Signal.Snippet
 import Signal.Utils
 import Signal.Notes
-import Prelude hiding (zip, take)
+import Prelude ()
 import qualified Prelude
-import Data.List hiding (take)
+import Data.List (foldl')
+
+l :: Time -> Time
+l n = n * 4.5
 
 leeloo :: Signal Double
 leeloo =
-  -- focus 0 (l 38) $
-  fmap (* 0.03) $
+  focus 0 (l 4) $
+  chords +++
+  melody +++
+  tiktok +++
+  empty
+
+melody =
+  fmap (* 0.1) $
+  raster (l 1 / 12) [
+    2 ~> sn a''',
+    4 ~> n c'''',
+    2 ~> sn d'''',
+    2 ~> n c'''',
+    11 ~> \ t -> ns (divide [
+      2 ~> \ t -> ramp t a''' aflat''',
+      2 ~> \ t -> ramp t aflat''' a''',
+      7 ~> \ _t -> constant a'''
+     ] t) t,
+    3 ~> evenly [sn (pitch (- 0.4) aflat'''), n g''', n f'''],
+    12 ~> n d'''
+  ]
+
+  where
+
+    n :: Double -> Time -> Signal Double
+    n frequency length =
+      nadsr length $
+      constSpeedup frequency rect
+
+    sn frequency length =
+      nadsr length $
+      speedup (ramp 0.3 (pitch (-1) frequency) frequency |> constant frequency) rect
+
+    ns :: Signal Double -> Time -> Signal Double
+    ns frequency length =
+      nadsr length $
+      speedup frequency rect
+
+    nadsr length = adsr (length + 0.3) (Adsr 0.1 0.2 0.7 0.3)
+
+
+chords =
+  fmap (* 0.05) $
     empty
     +++ l 0 |-> partA
     +++ l 8 |-> partA
@@ -28,7 +72,7 @@ partA =
   +++ l 1 |->
     chord [f'', c''', e''', a''']
   +++ l 2 |->
-    chord [f'', c''', e''', a''']
+    chord [bflat', d''', f''', a''']
   +++ l 3 |->
     chord [bflat', d''', f''', a''']
   +++ l 4 |->
@@ -39,8 +83,6 @@ partA =
     chord [f'', c''', e''', a''']
   +++ l 7 |->
     chord [c'', bflat'', e''', g''']
-
-l n = 3 * n
 
 partB =
   empty
@@ -60,7 +102,7 @@ partB =
   +++ l 13 |-> chord [c'', e'', bflat'', d''']
 
 chord frequencies =
-  fanOut (adsr 3.3 (Adsr 0.01 0.2 0.7 1) . note) frequencies
+  fanOut (adsr (l 1 * 1.1) (Adsr 0.01 0.2 0.7 1) . note) frequencies
 
 note frequency = harmonics [1, 0.5, 0.9, 0.3, 0.6] frequency
 
@@ -71,3 +113,9 @@ harmonics weights frequency =
   where
     tone natural weight =
       fmap (* weight) (constSpeedup (frequency * natural) sine)
+
+tiktok :: Signal Double
+tiktok =
+  fmap (* 0.2) $
+  cycle $
+  fill (l (1 / 12)) $ take 0.001 (constant 1)

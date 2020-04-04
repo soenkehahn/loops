@@ -16,7 +16,7 @@ import Data.Fixed
 import Data.Function
 import Data.List (foldl')
 import Data.STRef
-import Data.Vector (Vector, (!), (!?))
+import Data.Vector ((!))
 import Signal.Epsilon
 import Prelude hiding (take, repeat, cycle, zip, zipWith)
 import qualified Data.ByteString.Char8 as BS

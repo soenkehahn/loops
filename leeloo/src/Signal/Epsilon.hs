@@ -8,6 +8,9 @@ import qualified Data.Vector as Vec
 class EpsilonOrd a where
   compare :: a -> a -> Ordering
 
+instance EpsilonOrd Char where
+  compare = Prelude.compare
+
 instance EpsilonOrd Integer where
   compare = Prelude.compare
 

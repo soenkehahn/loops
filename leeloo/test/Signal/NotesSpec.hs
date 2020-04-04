@@ -21,3 +21,6 @@ spec = do
 
     it "a''' comes out as 440 Hz" $ do
       a''' `shouldBeCloseTo` 440
+
+    it "works for micro pitches" $ do
+      pitch (- 0.5) a''' `shouldBeCloseTo` (440 * 2 ** (- 0.5 / 12))
