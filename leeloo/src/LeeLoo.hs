@@ -12,15 +12,14 @@ import qualified Prelude
 import Data.List (foldl')
 
 l :: Time -> Time
-l n = n * 4.5
+l n = n * 3
 
 leeloo :: Signal Double
 leeloo =
-  phaser $
   focus 0 (l 4) $
   chords +++
   melody +++
-  tiktok +++
+  -- tiktok +++
   empty
 
 melody =
@@ -31,9 +30,9 @@ melody =
     2 ~> sn d'''',
     2 ~> n c'''',
     11 ~> \ t -> ns (divide [
-      2 ~> \ t -> ramp t a''' aflat''',
-      2 ~> \ t -> ramp t aflat''' a''',
-      7 ~> \ _t -> constant a'''
+      2 ~> ramp a''' aflat''',
+      2 ~> ramp aflat''' a''',
+      7 ~> \ _ -> constant a'''
      ] t) t,
     3 ~> evenly [sn (pitch (- 0.4) aflat'''), n g''', n f'''],
     24 ~> n d'''
@@ -48,7 +47,7 @@ melody =
 
     sn frequency length =
       nadsr length $
-      speedup (ramp 0.3 (pitch (-1) frequency) frequency |> constant frequency) rect
+      speedup (ramp (pitch (-1) frequency) frequency 0.3 |> constant frequency) rect
 
     ns :: Signal Double -> Time -> Signal Double
     ns frequency length =
@@ -59,6 +58,7 @@ melody =
 
 
 chords =
+  phaser $
   fmap (* 0.05) $
     empty
     +++ l 0 |-> partA
@@ -131,11 +131,17 @@ phaser = onFinite inner
         take end (onInfinite (signal |> constant 0))
 
     phaseSignal =
-      fmap (project (-1, 1) (0.99, 1.01)) $
-      constSpeedup (fromTime $ l 0.9) $
+      fmap (project (-1, 1) (1 - deviation, 1 + deviation)) $
+      constSpeedup (fromTime (1 / frequency)) $
       sine
 
     inner signal =
-      fmap (/ 1.3) $
+      fmap (/ (1 + wetness)) $
         signal +++
-        fmap (* 0.3) (speedup phaseSignal signal)
+        fmap (* wetness) (speedup phaseSignal signal)
+
+    wetness = 1
+
+    deviation = 0.01
+
+    frequency = l 1 / 12

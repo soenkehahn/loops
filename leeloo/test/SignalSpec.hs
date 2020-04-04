@@ -44,12 +44,12 @@ spec = do
 
   describe "skip" $ do
     it "skips the first part of a signal" $ do
-      let signal = skip 0.2 $ ramp 1 0 1
+      let signal = skip 0.2 $ ramp 0 1 1
       test 0.1 2 signal [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
   describe "focus" $ do
     it "focusses on the given time window" $ do
-      let signal = focus 0.2 0.5 $ ramp 1 0 1
+      let signal = focus 0.2 0.5 $ ramp 0 1 1
       test 0.1 2 signal [0.2, 0.3, 0.4, 0.5, 0.6]
 
   describe "zip" $ do
@@ -91,7 +91,7 @@ spec = do
 
   describe "constSpeedup" $ do
     it "speeds the signal up by a constant" $ do
-      let signal = constSpeedup 2 $ ramp 1 0 1
+      let signal = constSpeedup 2 $ ramp 0 1 1
       end signal `shouldBeCloseTo` Just 0.5
       test 0.1 10 signal [0, 0.2, 0.4, 0.6, 0.8 :: Double]
 
@@ -111,7 +111,7 @@ spec = do
       test 0.25 3 signal ([23, 23, 42, 42] :: [Integer])
 
     it "passes in the right time to the second snippet" $ do
-      let signal = ramp 1 0 1 |> ramp 1 0 1
+      let signal = ramp 0 1 1 |> ramp 0 1 1
       test 0.5 10 signal [0, 0.5, 0, 0.5 :: Double]
 
   describe "repeat" $ do
@@ -120,12 +120,12 @@ spec = do
 
   describe "cycle" $ do
     it "repeats a signal infinitely" $ do
-      let signal = cycle (ramp 1 0 1)
+      let signal = cycle (ramp 0 1 1)
       test 0.5 3 signal [0, 0.5, 0, 0.5, 0, 0.5]
       end signal `shouldBeCloseTo` Nothing
 
     it "works for infinite signals" $ do
-      let signal = cycle (ramp 1 0 1 |> constant 23)
+      let signal = cycle (ramp 0 1 1 |> constant 23)
       test 0.5 2 signal [0, 0.5, 23, 23]
 
   describe "+++" $ do
@@ -174,15 +174,15 @@ spec = do
 
   describe "ramp" $ do
     it "allows to specify a ramp" $ do
-      let signal = ramp 1 0.3 1.3
+      let signal = ramp 0.3 1.3 1
       test 0.1 2 signal [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2 :: Double]
 
     it "allows to specify a ramp with negative slope" $ do
-      let signal = ramp 1 1.3 0.3
+      let signal = ramp 1.3 0.3 1
       test 0.1 2 signal [1.3, 1.2, 1.1, 1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4 :: Double]
 
     it "allows to specify the length of the ramp" $ do
-      let signal = ramp 0.5 0.3 1.3
+      let signal = ramp 0.3 1.3 0.5
       test 0.1 2 signal [0.3, 0.5, 0.7, 0.9, 1.1:: Double]
 
   describe "adsr" $ do

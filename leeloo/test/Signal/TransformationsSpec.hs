@@ -10,7 +10,7 @@ spec = do
   describe "echo" $ do
     it "produces a single echo" $ do
       let signal = echo 0.2 0.5
-            (ramp 1 0 1)
+            (ramp 0 1 1)
           expected =
             Prelude.zipWith (+)
               [0.0, 0.1, 0.2, 0.3 , 0.4, 0.5 , 0.6, 0.7 , 0.8, 0.9,  0.0, 0.0 ]

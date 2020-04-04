@@ -270,9 +270,9 @@ sine = fmap sin phase
 rect :: Signal Double
 rect = fmap (\ x -> if x < tau / 2 then -1 else 1) phase
 
-ramp :: Time -> Double -> Double -> Signal Double
-ramp length _ _ | length ==== 0 = empty
-ramp length start end = Signal (Just length) $ return $ \ time ->
+ramp :: Double -> Double -> Time -> Signal Double
+ramp _ _ length | length ==== 0 = empty
+ramp start end length = Signal (Just length) $ return $ \ time ->
   return $ (fromTime time / fromTime length) * (end - start) + start
 
 data Adsr = Adsr {
@@ -287,7 +287,7 @@ adsr length (Adsr attack decay sustain release) signal =
   envelope /\ signal
   where
     envelope =
-      ramp attack 0 1 |>
-      ramp decay 1 sustain |>
+      ramp 0 1 attack |>
+      ramp 1 sustain decay |>
       take (length - attack - decay - release) (constant sustain) |>
-      ramp release sustain 0
+      ramp sustain 0 release
