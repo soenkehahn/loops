@@ -16,7 +16,7 @@ l n = n * 3
 
 leeloo :: Signal Double
 leeloo =
-  focus 0 (l 4) $
+  focus 0 (l 3) $
   chords +++
   melody +++
   -- tiktok +++
@@ -29,30 +29,33 @@ melody =
     4 ~> n c'''',
     2 ~> sn d'''',
     2 ~> n c'''',
-    11 ~> \ t -> ns (divide [
+    11 ~> ns (divide [
       2 ~> ramp a''' aflat''',
-      2 ~> ramp aflat''' a''',
-      7 ~> \ _ -> constant a'''
-     ] t) t,
-    3 ~> evenly [sn (pitch (- 0.4) aflat'''), n g''', n f'''],
+      1 ~> ramp aflat''' a''',
+      8 ~> \ _ -> constant a'''
+     ]),
+    3 ~> divide [
+      2 ~> ns (ramp (pitch (-0.5) aflat''') g'''),
+      1 ~> ffmap (* 0.8) (n f''')
+    ],
     24 ~> n d'''
   ]
 
   where
-
     n :: Double -> Time -> Signal Double
     n frequency length =
       nadsr length $
       constSpeedup frequency rect
 
-    sn frequency length =
-      nadsr length $
-      speedup (ramp (pitch (-1) frequency) frequency 0.3 |> constant frequency) rect
+    sn frequency =
+      ns $ \ len ->
+        take (len * 1.5) $
+        ramp (pitch (-1) frequency) frequency 0.3 |> constant frequency
 
-    ns :: Signal Double -> Time -> Signal Double
+    ns :: (Time -> Signal Double) -> Time -> Signal Double
     ns frequency length =
       nadsr length $
-      speedup frequency rect
+      speedup (frequency length) rect
 
     nadsr length = adsr (length + 0.3) (Adsr 0.1 0.2 0.7 0.3)
 
@@ -119,7 +122,7 @@ tiktok :: Signal Double
 tiktok =
   fmap (* 0.2) $
   cycle $
-  fill (l (1 / 12)) $ take 0.001 (constant 1)
+  fill (l (1 / 4)) $ take 0.001 (constant 1)
 
 phaser :: Signal Double -> Signal Double
 phaser = onFinite inner
@@ -131,6 +134,7 @@ phaser = onFinite inner
         take end (onInfinite (signal |> constant 0))
 
     phaseSignal =
+      skip 0.5 $
       fmap (project (-1, 1) (1 - deviation, 1 + deviation)) $
       constSpeedup (fromTime (1 / frequency)) $
       sine
@@ -142,6 +146,6 @@ phaser = onFinite inner
 
     wetness = 1
 
-    deviation = 0.01
+    deviation = 0.003
 
-    frequency = l 1 / 12
+    frequency = l 1 / 4

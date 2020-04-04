@@ -31,3 +31,6 @@ evenly parts = divide $ map (Part 1) parts
 
 raster :: Num a => Time -> [Part a] -> Signal a
 raster unit parts = divide parts (unit * Time (sum (map weight parts)))
+
+ffmap :: (Functor f, Functor g) => (a -> b) -> f (g a) -> f (g b)
+ffmap f x = fmap (fmap f) x
