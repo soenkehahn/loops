@@ -16,6 +16,7 @@ l n = n * 4.5
 
 leeloo :: Signal Double
 leeloo =
+  phaser $
   focus 0 (l 4) $
   chords +++
   melody +++
@@ -35,7 +36,7 @@ melody =
       7 ~> \ _t -> constant a'''
      ] t) t,
     3 ~> evenly [sn (pitch (- 0.4) aflat'''), n g''', n f'''],
-    12 ~> n d'''
+    24 ~> n d'''
   ]
 
   where
@@ -119,3 +120,22 @@ tiktok =
   fmap (* 0.2) $
   cycle $
   fill (l (1 / 12)) $ take 0.001 (constant 1)
+
+phaser :: Signal Double -> Signal Double
+phaser = onFinite inner
+  where
+    onFinite :: (Signal Double -> Signal Double) -> (Signal Double -> Signal Double)
+    onFinite onInfinite signal = case end signal of
+      Nothing -> onInfinite signal
+      Just end ->
+        take end (onInfinite (signal |> constant 0))
+
+    phaseSignal =
+      fmap (project (-1, 1) (0.99, 1.01)) $
+      constSpeedup (fromTime $ l 0.9) $
+      sine
+
+    inner signal =
+      fmap (/ 1.3) $
+        signal +++
+        fmap (* 0.3) (speedup phaseSignal signal)
