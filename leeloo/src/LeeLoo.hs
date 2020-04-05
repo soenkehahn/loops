@@ -9,6 +9,7 @@ import Signal.Utils
 import Signal.Notes
 import Signal.Transformations
 import Prelude ()
+import Data.Maybe
 
 l :: Time -> Time
 l n = n * 3
@@ -16,10 +17,11 @@ l n = n * 3
 leeloo :: Signal Double
 leeloo =
   fmap (* 0.2) $
-  focus 0 (l 4) $
+  take (fromJust $ end chords) $
+  -- focus (l 30) (l 4) $
   silence 0.05 |> chords +++
   melody +++
-  drums +++
+  silence 0.05 |> drums +++
   -- tiktok +++
   empty
 
@@ -43,7 +45,25 @@ melody =
     1 ~> n c''',
     1 ~> n d''',
     1 ~> n c''',
-    10 ~> n d'''
+    10 ~> n d''',
+    10 .> empty,
+    1 ~> n c''',
+    1 ~> n d''',
+
+    2 ~> sn e''',
+    9 ~> sn e''',
+    1 ~> n d''',
+
+    2 ~> evenly (map n [e''', g''', e''', d''']),
+    6 ~> n e''',
+    1 ~> n c''',
+    3 ~> divide [
+      0.8 ~> n eflat''',
+      0.8 ~> n dflat''',
+      1.1 ~> n c''',
+      1.1 ~> n bflat''],
+
+    12 ~> n c'''
   ]
 
   where
@@ -90,9 +110,9 @@ partA =
   +++ l 4 |->
     chord [f'', c''', e''', a''']
   +++ l 5 |->
-    chord [c'', bflat'', e''', g''']
-  +++ l 6 |->
     chord [f'', c''', e''', a''']
+  +++ l 6 |->
+    chord [c'', bflat'', e''', g''']
   +++ l 7 |->
     chord [c'', bflat'', e''', g''']
 
@@ -134,7 +154,6 @@ phaser = onFinite inner
         take end (onInfinite (signal |> constant 0))
 
     phaseSignal =
-      skip 0.5 $
       fmap (project (-1, 1) (1 - deviation, 1 + deviation)) $
       constSpeedup (fromTime (1 / frequency)) $
       sine
@@ -146,13 +165,14 @@ phaser = onFinite inner
 
     wetness = 1
 
-    deviation = 0.003
+    deviation = 0.001
 
     frequency = l 1 / 4
 
 drums :: Signal Double
 drums =
-  evenly (
+  cycle $
+  raster (l 1 / 4) $ fmap (1 ~>) $
     kick :
     kick :
     snare :
@@ -169,7 +189,55 @@ drums =
     kick :
     snare :
     evenly [snare, kick] :
-    []) (l 4)
+    kick :
+    kick :
+    snare :
+    snare :
+    kick :
+    kick :
+    snare :
+    evenly [snare, kick] :
+    kick :
+    kick :
+    snare :
+    snare :
+    kick :
+    kick :
+    snare :
+    evenly [snare, kick] :
+    kick :
+    kick :
+    snare :
+    snare :
+    kick :
+    kick :
+    snare :
+    evenly [snare, kick] :
+    kick :
+    kick :
+    snare :
+    snare :
+    kick :
+    kick :
+    snare :
+    evenly [snare, kick] :
+    kick :
+    kick :
+    snare :
+    snare :
+    kick :
+    kick :
+    snare :
+    evenly [snare, kick] :
+    kick :
+    kick :
+    snare :
+    snare :
+    kick :
+    kick :
+    snare :
+    evenly [snare, kick] :
+    []
 
   where
     kick _len =
