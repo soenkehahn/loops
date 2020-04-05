@@ -9,20 +9,18 @@ import Signal.Utils
 import Signal.Notes
 import Signal.Transformations
 import Prelude ()
-import Data.Maybe
 
 l :: Time -> Time
 l n = n * 3
 
 leeloo :: Signal Double
 leeloo =
-  fmap (* 0.2) $
-  take (fromJust $ end chords) $
-  -- focus (l 30) (l 4) $
+  fmap (* 0.6) $
+  -- take (fromJust $ end chords) $
+  focus (l 0) (l 1) $
   silence 0.05 |> chords +++
   melody +++
-  silence 0.05 |> drums +++
-  -- tiktok +++
+  drums +++
   empty
 
 melody =
@@ -75,7 +73,7 @@ melody =
     sn frequency =
       ns $ \ len ->
         take (len * 1.5) $
-        ramp (pitch (-1) frequency) frequency 0.3 |> constant frequency
+        ramp (pitch (-0.7) frequency) frequency 0.3 |> constant frequency
 
     ns :: (Time -> Signal Double) -> Time -> Signal Double
     ns frequency length =
@@ -138,12 +136,6 @@ chord frequencies =
 
 note frequency = constSpeedup frequency $ harmonics [1, 0.5, 0.9, 0.3, 0.6]
 
-tiktok :: Signal Double
-tiktok =
-  fmap (* 0.2) $
-  cycle $
-  fill (l (1 / 4)) $ take 0.001 (constant 1)
-
 phaser :: Signal Double -> Signal Double
 phaser = onFinite inner
   where
@@ -167,11 +159,10 @@ phaser = onFinite inner
 
     deviation = 0.001
 
-    frequency = l 1 / 4
+    frequency = l 1 / 2
 
 drums :: Signal Double
 drums =
-  cycle $
   raster (l 1 / 4) $ fmap (1 ~>) $
     kick :
     kick :
