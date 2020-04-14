@@ -17,7 +17,7 @@ leeloo :: Signal Double
 leeloo =
   fmap (* 0.6) $
   -- take (fromJust $ end chords) $
-  focus (l 0) (l 1) $
+  focus (l 0) (l 8) $
   silence 0.05 |> chords +++
   melody +++
   drums +++
@@ -33,7 +33,7 @@ melody =
     11 ~> ns (divide [
       2 ~> ramp a''' aflat''',
       1 ~> ramp aflat''' a''',
-      8 ~> \ _ -> constant a'''
+      8 ~> \ time -> take time (constant a''')
      ]),
     3 ~> divide [
       2 ~> ns (\ t -> ramp (pitch (-0.5) aflat''') g''' t |> constant g'''),
@@ -96,40 +96,34 @@ chords =
     +++ l 30 |-> partA
 
 partA =
-  empty
-  +++ l 0 |->
-    chord [f'', c''', e''', a''']
-  +++ l 1 |->
-    chord [f'', c''', e''', a''']
-  +++ l 2 |->
-    chord [bflat', d''', f''', a''']
-  +++ l 3 |->
-    chord [bflat', d''', f''', a''']
-  +++ l 4 |->
-    chord [f'', c''', e''', a''']
-  +++ l 5 |->
-    chord [f'', c''', e''', a''']
-  +++ l 6 |->
-    chord [c'', bflat'', e''', g''']
-  +++ l 7 |->
-    chord [c'', bflat'', e''', g''']
+  raster (l 1) $ fmap (1 .>) $
+    chord [f'', c''', e''', a'''] :
+    chord [f'', c''', e''', a'''] :
+    chord [bflat', d''', f''', a'''] :
+    chord [bflat', d''', f''', a'''] :
+    chord [f'', c''', e''', a'''] :
+    chord [f'', c''', e''', a'''] :
+    chord [c'', bflat'', e''', g'''] :
+    chord [c'', bflat'', e''', g'''] :
+    []
 
 partB =
-  empty
-  +++ l 0 |-> chord [bflat', a'', d''', f''']
-  +++ l 1 |-> chord [b', aflat'', d''', f''']
-  +++ l 2 |-> chord [c'', a'', e''', f''']
-  +++ l 3 |-> chord [c'', a'', eflat''', f''']
-  +++ l 4 |-> chord [bflat', a'', d''', f''']
-  +++ l 5 |-> chord [bflat', aflat'', dflat''', f''']
-  +++ l 6 |-> chord [a', g'', c''', e''']
-  +++ l 7 |-> chord [d'', fsharp'', c''', e''']
-  +++ l 8 |-> chord [bflat', a'', d''', f''']
-  +++ l 9 |-> chord [bflat', aflat'', dflat''', f''']
-  +++ l 10 |-> chord [a', g'', c''', e''']
-  +++ l 11 |-> chord [d'', fsharp'', c''', e''']
-  +++ l 12 |-> chord [g', f'', bflat'', d''']
-  +++ l 13 |-> chord [c'', e'', bflat'', d''']
+  raster (l 1) $ fmap (1 .>) $
+    chord [bflat', a'', d''', f'''] :
+    chord [b', aflat'', d''', f'''] :
+    chord [c'', a'', e''', f'''] :
+    chord [c'', a'', eflat''', f'''] :
+    chord [bflat', a'', d''', f'''] :
+    chord [bflat', aflat'', dflat''', f'''] :
+    chord [a', g'', c''', e'''] :
+    chord [d'', fsharp'', c''', e'''] :
+    chord [bflat', a'', d''', f'''] :
+    chord [bflat', aflat'', dflat''', f'''] :
+    chord [a', g'', c''', e'''] :
+    chord [d'', fsharp'', c''', e'''] :
+    chord [g', f'', bflat'', d'''] :
+    chord [c'', e'', bflat'', d'''] :
+    []
 
 chord frequencies =
   fanOut (adsr (l 1 * 1.1) (Adsr 0.01 0.2 0.7 1) . note) frequencies

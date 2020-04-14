@@ -29,7 +29,7 @@ import System.Random
 
 newtype Time = Time {
   fromTime :: Double
-} deriving (Num, Fractional, Enum)
+} deriving (Num, Fractional, Enum, Random)
 
 instance Show Time where
   show (Time t) = show t

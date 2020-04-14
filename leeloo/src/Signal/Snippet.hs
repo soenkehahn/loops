@@ -15,7 +15,6 @@ module Signal.Snippet (
   computeIndex_,
 ) where
 
-import Debug.Trace
 import Control.Monad
 import Control.Monad.ST
 import Data.Maybe

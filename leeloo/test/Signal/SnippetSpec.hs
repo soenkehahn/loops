@@ -1,5 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Signal.SnippetSpec where
 
@@ -191,3 +192,53 @@ spec = describe "" $ do
 
     it "returns the next cell when the time is less than epsilon below the next cell" $ do
       computeIndex_ 10 10 (5 - Time epsilon / 2) `shouldBe` 5
+
+  bla
+
+data TestSignal
+  = TakeConstant Double Double
+  deriving (Show)
+
+toSignal :: TestSignal -> Signal Double
+toSignal = \case
+  TakeConstant length value -> take (Time length) (constant value)
+
+instance Arbitrary TestSignal where
+  arbitrary = oneof [
+    TakeConstant <$> choose (0, 10) <*> choose (-1, 1)
+    ]
+  shrink = \case
+    TakeConstant length value ->
+      (TakeConstant <$> shrink length <*> pure value) ++
+      (TakeConstant <$> pure length <*> shrink value)
+
+getSample :: Signal a -> Time -> a
+getSample signal time = runST $ do
+  runSignal <- initialize signal
+  runSignal time
+
+simpleDivide :: Num a => [Part a] -> Time -> Signal a
+simpleDivide [] len = silence len
+simpleDivide parts len = inner parts
+  where
+    timeUnit = len / Time (sum (map (realToFrac . weight) parts))
+    inner parts = case parts of
+      Part weight part : rest ->
+        let len = (timeUnit * Time (realToFrac weight))
+        in part len +++
+           len |-> inner rest
+      [] -> empty
+
+
+bla = do
+  fit "behaves like an unoptimized simpler version of divide" $ property $
+    forAllShrink (choose (0, 100)) shrink $ \ (Time -> length) ->
+    (0 `lt` length) ==>
+    forAllShrink (choose (0, fromTime length)) shrink $ \ (Time -> time) ->
+    (0 `lt` time && time `lt` length) ==>
+    forAllShrink (listOf1 (choose (1, 10))) shrink $ \ (intWeights :: [Int]) ->
+    let weights = map fromIntegral intWeights
+    in \ testSignals ->
+    let parts = map (\ (weight, testSignal) -> weight ~> \ _time -> toSignal testSignal) $ Prelude.zip weights testSignals
+    in counterexample (show $ Prelude.zip weights testSignals) $
+      getSample (divide parts length) time `shouldBe` getSample (simpleDivide parts length) time
