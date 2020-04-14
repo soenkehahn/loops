@@ -30,3 +30,4 @@ tests:
     dependencies:
       - hspec
       - HUnit
+      - QuickCheck

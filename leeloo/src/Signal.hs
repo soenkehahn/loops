@@ -119,7 +119,7 @@ fromList :: Time -> [a] -> Signal a
 fromList delta (Vec.fromList -> vec) =
   Signal
     (Just $ fromIntegral (length vec) * delta)
-    (return $ \ time -> return $ vec ! floor (fromTime time / fromTime delta))
+    (return $ \ time -> return $ vec ! Signal.Epsilon.floor (fromTime time / fromTime delta))
 
 random :: Random a => (a, a) -> Signal a
 random bounds =

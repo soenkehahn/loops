@@ -1,13 +1,24 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns #-}
+
 module Signal.SnippetSpec where
 
+import Control.Monad
+import Data.Fixed
 import Prelude ()
+import Control.Monad.ST
 import Signal
 import Signal.Snippet
+import Signal.Epsilon
 import Test.Hspec
 import Test.Utils
+import qualified Data.Vector as Vec
+import Test.QuickCheck
+import Data.Vector ((!))
+import qualified Prelude
 
 spec :: Spec
-spec = do
+spec = describe "" $ do
   describe "|->" $ do
     it "allows to construct a signal" $ do
       let snippet = 0 |-> constant 42
@@ -39,8 +50,8 @@ spec = do
 
   describe "dividing system" $ do
     let n :: Integer -> Time -> Signal Integer
-        n value length =
-            take length $ constant value
+        n value length = Signal (Just length) $ do
+          return $ \ time -> return $ if time `lt` length then value else 0
 
     describe "divide" $ do
       it "allows to divide into two halfs evenly" $ do
@@ -68,6 +79,30 @@ spec = do
             signal = divide [1 ~> longer 1, 4 ~> n 2] 5
         test 1 10 signal [1, 3, 2, 2, 2]
 
+      it "doesn't ever make signals overlap that shouldn't overlap" $ property $
+        forAllShrink (choose (0, 100)) shrink $ \ (Time -> length) ->
+        (0 `lt` length) ==>
+        forAllShrink (choose (0, fromTime length)) shrink $ \ (Time -> time) ->
+        (0 `lt` time && time `lt` length) ==>
+        forAllShrink (listOf1 (choose (1, 10))) shrink $ \ (intWeights :: [Int]) ->
+        let weights = map fromIntegral intWeights
+        in (not (null weights) && all (> 0) weights) ==> do
+          let signal = divide (map (\ weight -> weight ~> n 1) weights) length
+              sample = runST $ do
+                runSignal <- initialize signal
+                runSignal time
+          sample `shouldBe` 1
+
+      it "can handle time inputs that are less than epsilon below 0" $ do
+        let signal = divide [1 ~> n 1] 1
+            sample = runST $ do
+              runSignal <- initialize signal
+              runSignal $ Time (0 - (epsilon / 20))
+        sample `shouldBe` 1
+
+      it "can handle infinite signals" $ do
+        pending
+
     describe "evenly" $ do
       it "divides evenly" $ do
         let signal = evenly [n 1, n 2, n 3, n 4] 8
@@ -77,3 +112,82 @@ spec = do
       it "uses the given length as the time unit" $ do
         let signal = raster 2 [1 ~> n 1, 1 ~> n 2]
         test 1 10 signal [1, 1, 2, 2]
+
+  describe "mkSnippets_" $ do
+    let constSignal = \ len -> take len (constant (42 :: Double))
+
+    it "returns snippets with start times, starting at 0" $ do
+      let parts = [Part 1 (\ len -> take len (constant 42))]
+      map fst (mkSnippets_ parts 1) `shouldBeCloseTo` [0]
+
+    it "consecutive snippets are being started later by one time-unit" $ do
+      let parts = [Part 1 constSignal, Part 1 constSignal]
+      map fst (mkSnippets_ parts 2) `shouldBeCloseTo` [0, 1]
+
+    it "takes the weights into account" $ do
+      let parts = [Part 0.5 constSignal, Part 1.5 constSignal]
+      map fst (mkSnippets_ parts 2) `shouldBeCloseTo` [0, 0.5]
+
+    it "takes the overall length into account" $ do
+      let parts = [Part 1 constSignal, Part 1 constSignal]
+      map fst (mkSnippets_ parts 3) `shouldBeCloseTo` [0, 1.5]
+
+    it "passes the length of the part to the signal" $ do
+      let parts = [Part 4 constSignal, Part 2 constSignal]
+          signal = snd $ head $ mkSnippets_ parts 3
+      test 1 5 signal [42, 42]
+
+  describe "mkVector_" $ do
+    let withEnd :: Time -> (Time -> Double) -> Signal Double
+        withEnd end f = Signal (Just end) $ return $ \ time -> return (f time)
+
+        runMkVector_ :: Int -> [(Time, Signal Double)] -> [Double]
+        runMkVector_ vectorLength snippets = runST $ do
+          vector <- mkVector_ vectorLength snippets
+          samples <- forM (Prelude.zip [0 ..] (Vec.toList vector)) $ \ (i, cell) ->
+            cell (i * 1)
+          return $ samples
+
+    it "returns a singleton vector with the given signal in it" $ do
+      let samples = runMkVector_ 1 [(0, withEnd 1 (const 42))]
+      samples `shouldBe` [42]
+
+    it "puts a single signal into two cells when the signal overlaps both cells" $ do
+      let samples = runMkVector_ 2 [(0, withEnd 2 (const 42))]
+      samples `shouldBe` [42, 42]
+
+    it "adds two signals when they overlap" $ do
+      let samples = runMkVector_ 1 [(0, withEnd 1 (const 3)), (0, withEnd 1 (const 4))]
+      samples `shouldBe` [7]
+
+    it "doesn't put the signal in a cell that ends before the signal starts" $ do
+      let samples = runMkVector_ 2 [(0, withEnd 2 (const 3)), (1, withEnd 1 (const 4))]
+      samples `shouldBe` [3, 7]
+
+    it "doesn't put the signal in a cell that starts after the signal ends" $ do
+      let samples = runMkVector_ 2 [(0, withEnd 2 (const 3)), (0, withEnd 1 (const 4))]
+      samples `shouldBe` [7, 3]
+
+    it "shifts the signals by their start date" $ do
+      let samples = runMkVector_ 4 [(0, withEnd 4 (const 1)), (2, ramp 1 2 2)]
+      samples `shouldBe` [1, 1, 2, 2.5]
+
+  describe "_vectorLength" $ do
+    it "does stuff" $ do
+      pending
+
+  describe "computeIndex" $ do
+    it "returns an index pointing to the first cell for time 0" $ do
+      computeIndex_ 10 10 0 `shouldBe` 0
+
+    it "returns an index pointing to a later cell for later times" $ do
+      computeIndex_ 10 10 5 `shouldBe` 5
+
+    it "works for times in the middle of a cell" $ do
+      computeIndex_ 10 10 5.5 `shouldBe` 5
+
+    it "works for times that are less than epsilon below 0" $ do
+      computeIndex_ 10 10 (0 - Time epsilon / 2) `shouldBe` 0
+
+    it "returns the next cell when the time is less than epsilon below the next cell" $ do
+      computeIndex_ 10 10 (5 - Time epsilon / 2) `shouldBe` 5

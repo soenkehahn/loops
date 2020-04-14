@@ -14,9 +14,12 @@ instance EpsilonOrd Char where
 instance EpsilonOrd Integer where
   compare = Prelude.compare
 
+epsilon :: Double
+epsilon = 0.000000001
+
 instance EpsilonOrd Double where
   compare a b =
-    if abs (a - b) < 0.000000001 then
+    if abs (a - b) < epsilon then
       EQ
     else if a < b then
       LT
@@ -27,6 +30,13 @@ lt :: EpsilonOrd a => a -> a -> Bool
 lt a b = case Signal.Epsilon.compare a b of
   LT -> True
   _ -> False
+
+floor :: (RealFrac a, EpsilonOrd a) => a -> Int
+floor x =
+  let candidate = Prelude.floor x
+  in if x `lt` fromIntegral (candidate + 1)
+    then candidate
+    else candidate + 1
 
 class EpsilonEq a where
   (====) :: a -> a -> Bool
