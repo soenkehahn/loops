@@ -18,7 +18,7 @@ leeloo =
   fmap (* 0.6) $
   -- take (fromJust $ end chords) $
   focus (l 0) (l 8) $
-  silence 0.05 |> chords +++
+  silence 0.03 |> chords +++
   melody +++
   drums +++
   empty
@@ -227,17 +227,12 @@ drums =
 
   where
     kick _len =
-      fmap (compress 0.999) $
-      env len /\
-      speedup (ramp 45 20 len) sine
+      fmap (* 1.3) $
+      fmap (compress 0.92) $
+      adsr len (Adsr 0.01 0.02 0 0) $
+      speedup (ramp 60 50 len) sine
 
-    len = 0.08
-
-    env :: Time -> Signal Double
-    env len = Signal (Just len) $ return $ \ t ->
-      return $ 1 - (((fromTime t - tweak) / tweak) ** 2)
-      where
-        tweak = fromTime len / 2
+    len = 0.05
 
     snare _len =
       fmap (* 0.35) $
