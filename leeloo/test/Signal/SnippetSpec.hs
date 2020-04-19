@@ -144,7 +144,7 @@ spec = describe "" $ do
 
         runMkVector_ :: Int -> [(Time, Signal Double)] -> [Double]
         runMkVector_ vectorLength snippets = runST $ do
-          vector <- mkVector_ vectorLength snippets
+          (_, vector) <- mkVector_ vectorLength snippets
           samples <- forM (Prelude.zip [0 ..] (Vec.toList vector)) $ \ (i, cell) ->
             cell (i * 1)
           return $ samples
@@ -201,7 +201,9 @@ data TestSignal
 
 toSignal :: TestSignal -> Signal Double
 toSignal = \case
-  TakeConstant length value -> take (Time length) (constant value)
+  TakeConstant length value ->
+    take (Time length) $
+    take (Time length) (constant value) |> constant 0
 
 instance Arbitrary TestSignal where
   arbitrary = oneof [
@@ -229,14 +231,24 @@ simpleDivide parts len = inner parts
            len |-> inner rest
       [] -> empty
 
+bla :: Spec
+bla = describe "property tests" $ do
+  it "foo" $ do
+    let parts = [
+            1 .> take 1 (constant 0.1),
+            1 .> take 3 (constant 0)
+          ]
 
-bla = do
-  fit "behaves like an unoptimized simpler version of divide" $ property $
+    print $ getSample (divide parts 1) 0.4
+    getSample (divide parts 1) 0.3 `shouldBe` (0.1 :: Double)
+
+  it "behaves like an unoptimized simpler version of divide" $ property $
     forAllShrink (choose (0, 100)) shrink $ \ (Time -> length) ->
     (0 `lt` length) ==>
     forAllShrink (choose (0, fromTime length)) shrink $ \ (Time -> time) ->
     (0 `lt` time && time `lt` length) ==>
     forAllShrink (listOf1 (choose (1, 10))) shrink $ \ (intWeights :: [Int]) ->
+    all (> 0) intWeights ==>
     let weights = map fromIntegral intWeights
     in \ testSignals ->
     let parts = map (\ (weight, testSignal) -> weight ~> \ _time -> toSignal testSignal) $ Prelude.zip weights testSignals

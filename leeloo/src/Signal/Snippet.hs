@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 
 module Signal.Snippet (
   (|->),
@@ -23,6 +24,7 @@ import Data.Vector (Vector, (!))
 import qualified Data.Vector as Vec
 import Signal
 import Signal.Epsilon
+import Debug.Trace
 
 infix 7 |->
 (|->) :: Num a => Time -> Signal a -> Signal a
@@ -32,10 +34,10 @@ divide :: Num a => [Part a] -> Time -> Signal a
 divide [] len = silence len
 divide parts len = Signal (Just len) $ do
   let snippets = mkSnippets_ parts len
-  signalVector <- mkVector_ (vectorLength_ parts len) snippets
+  (maxLen, signalVector) <- mkVector_ (vectorLength_ parts len) snippets
   let vectorLength = Vec.length signalVector
   return $ \ time -> do
-    let index = computeIndex_ len vectorLength time
+    let index = computeIndex_ maxLen vectorLength time
     when (index < 0) $
       error $ show (len, vectorLength, time, index)
     (signalVector ! index) time
@@ -58,7 +60,7 @@ mkSnippets_ parts len =
 -- fixme: don't use fromJust
 -- fixme: don't iterate through lists for every sample...
 
-mkVector_ :: Num a => Int -> [(Time, Signal a)] -> ST s (Vector (Time -> ST s a))
+mkVector_ :: Num a => Int -> [(Time, Signal a)] -> ST s (Time, Vector (Time -> ST s a))
 mkVector_ vectorLength snippets = do
   let minTime = 0
       maxTime = maximumBy Signal.Epsilon.compare $ map (\ (start, signal) -> start + (fromJust $ end signal)) snippets
@@ -67,11 +69,12 @@ mkVector_ vectorLength snippets = do
     forM snippets $ \ (start, signal) -> do
       i <- initialize signal
       return (start, signal, i)
-  return $ Vec.generate vectorLength $ \ index time -> do
+  return $ (maxTime, ) $ Vec.generate vectorLength $ \ index time -> do
     let start = fromIntegral index * cellLength
         end = (fromIntegral index + 1) * cellLength
     samples <- forM (filter (overlapping (start, end)) initializedSnippets) $ \ (start, signal, runSignal) -> do
       let t = time - start
+      -- trace (show (t, Signal.end signal)) (return ())
       case Signal.end signal of
         Just end | not (t `lt` end && not (time `lt` start)) -> do
           -- trace "muting signal" (return ())
@@ -81,6 +84,7 @@ mkVector_ vectorLength snippets = do
 
 overlapping :: (Time, Time) -> (Time, Signal a, b) -> Bool
 overlapping (cellStart, cellEnd) (signalStart, signal, _) =
+  (\ result -> trace (show ((cellStart, cellEnd), (signalStart, fromJust (end signal)), result)) result) $
   (signalStart `lt` cellEnd &&
    cellStart `lt` (signalStart + fromJust (end signal)))
 
