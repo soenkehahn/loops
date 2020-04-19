@@ -17,7 +17,7 @@ leeloo :: Signal Double
 leeloo =
   fmap (* 0.6) $
   -- take (fromJust $ end chords) $
-  focus (l 0) (l 8) $
+  focus (l 0) (l 1) $
   silence 0.05 |> chords +++
   melody +++
   drums +++
