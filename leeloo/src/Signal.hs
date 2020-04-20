@@ -43,6 +43,9 @@ minTime a b = Time $ min (fromTime a) (fromTime b)
 maxTime :: Time -> Time -> Time
 maxTime a b = Time $ max (fromTime a) (fromTime b)
 
+maximumTime :: [Time] -> Time
+maximumTime = Time . maximum . map fromTime
+
 data Signal a = Signal {
   end :: Maybe Time,
   initialize :: forall s . ST s (Time -> ST s a)
