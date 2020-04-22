@@ -86,6 +86,27 @@ spec = do
         let signal = raster 2 [1 ~> n 1, 1 ~> n 2]
         test 1 10 signal [1, 1, 2, 2]
 
+  describe "_signalVectorConfiguration" $ do
+    let s _time = empty
+
+    it "maps an even grid to vector cells" $ do
+      _signalVectorConfiguration [1 ~> s, 1 ~> s, 1 ~> s] 10
+        `shouldBeCloseTo` (3, 10)
+
+    it "returns the length as the tailStart" $ do
+      _signalVectorConfiguration [1 ~> s, 1 ~> s, 1 ~> s] 12
+        `shouldBeCloseTo` (3, 12)
+
+    it "maps an uneven grid to cells that correspond to the time units" $ do
+      _signalVectorConfiguration [1 ~> s, 2 ~> s, 3 ~> s] 10
+        `shouldBeCloseTo` (6, 10)
+
+    it "configures a vector that is longer than the grid for grids of fractional length" $ do
+      _signalVectorConfiguration [1 ~> s, 2 ~> s, 3.7 ~> s] 10
+        `shouldBeCloseTo` (7, (10 / 6.7) * 7)
+      _signalVectorConfiguration [1 ~> s, 2 ~> s, 3.3 ~> s] 10
+        `shouldBeCloseTo` (7, (10 / 6.3) * 7)
+
   goldenTests
 
 data TestSignal

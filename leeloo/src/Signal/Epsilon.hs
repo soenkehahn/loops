@@ -14,6 +14,9 @@ instance EpsilonOrd Char where
 instance EpsilonOrd Integer where
   compare = Prelude.compare
 
+instance EpsilonOrd Int where
+  compare = Prelude.compare
+
 instance EpsilonOrd Double where
   compare a b =
     if abs (a - b) < 0.000000001 then

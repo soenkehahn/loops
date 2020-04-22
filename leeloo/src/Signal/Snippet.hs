@@ -1,7 +1,18 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Signal.Snippet where
+module Signal.Snippet (
+  (|->),
+  divide,
+  evenly,
+  raster,
+  (~>),
+  (.>),
+
+  -- exported for testing
+  Part(..),
+  _signalVectorConfiguration,
+) where
 
 import Signal
 import Signal.Epsilon
@@ -36,7 +47,7 @@ divide [] length = silence length
 divide parts length =
   let snippets = mkSnippets parts length
   in Signal (partsLength snippets length) $ do
-    signalVector <- mkSignalVector snippets
+    signalVector <- mkSignalVector (_signalVectorConfiguration parts length) snippets
     return $ \ time -> do
       runSignalVector signalVector time
 
@@ -62,11 +73,19 @@ partsLength snippets length = do
     return (preSnippetStart snippet + length)
   return $ maxTime length (maximumTime snippetTimes)
 
+_signalVectorConfiguration :: [Part a] -> Time -> (Int, Time)
+_signalVectorConfiguration parts length =
+  (vectorLength, tailStart)
+  where
+    timeUnit = length / Time (sum (map weight parts))
+    vectorLength = ceiling $ fromTime (length / timeUnit)
+    tailStart = timeUnit * Time (fromIntegral (ceiling (sum (map weight parts)) :: Int))
+
 data SignalVector s a
   = SignalVector {
-    vector :: Vector [Snippet s a],
-    tailStart :: Time,
-    tail :: [Snippet s a]
+    _vector :: Vector [Snippet s a],
+    _tailStart :: Time,
+    _tail :: [Snippet s a]
   }
 
 runSignalVector :: Num a => SignalVector s a -> Time -> ST s a
@@ -79,15 +98,14 @@ runSignalVector (SignalVector vector tailStart tail) time =
         in vector ! index
       else tail
 
-mkSignalVector :: forall a s . Num a => [PreSnippet a] -> ST s (SignalVector s a)
-mkSignalVector snippets = do
+mkSignalVector :: forall a s . Num a =>
+  (Int, Time) -> [PreSnippet a] -> ST s (SignalVector s a)
+mkSignalVector (vectorLength, tailStart) snippets = do
   initializedSnippets <- mapM initializeSnippet snippets
   return $
-    let tailStart = 25
-        vectorLength = 500
-        step = tailStart / vectorLength
+    let step = tailStart / fromIntegral vectorLength
         mkCell start =
-          prune (start, Just (start + tailStart / vectorLength)) initializedSnippets
+          prune (start, Just (start + tailStart / fromIntegral vectorLength)) initializedSnippets
         vector = Data.Vector.fromList $ map mkCell (init [0, step .. tailStart])
         tail = prune (tailStart, Nothing) initializedSnippets
     in SignalVector vector tailStart tail
