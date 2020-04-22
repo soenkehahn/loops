@@ -16,8 +16,7 @@ l n = n * 3
 leeloo :: Signal Double
 leeloo =
   fmap (* 0.6) $
-  -- take (fromJust $ end chords) $
-  focus (l 0) (l 8) $
+  focus (l 14) (l 6) $
   silence 0.03 |> chords +++
   melody +++
   drums +++
@@ -25,46 +24,72 @@ leeloo =
 
 melody =
   fmap (* 0.1) $
-  raster (l 1 / 12) [
-    2 ~> sn a''',
-    4 ~> n c'''',
-    2 ~> sn d'''',
-    2 ~> n c'''',
-    11 ~> ns (divide [
-      2 ~> ramp a''' aflat''',
-      1 ~> ramp aflat''' a''',
-      8 .> constant a'''
-     ]),
-    3 ~> divide [
-      2 ~> ns (\ t -> ramp (pitch (-0.5) aflat''') g''' t |> constant g'''),
-      1 ~> n f'''
-    ],
-    11 ~> n d''',
-    1 ~> n c''',
-    1 ~> n d''',
-    1 ~> n c''',
-    10 ~> n d''',
-    10 .> empty,
-    1 ~> n c''',
-    1 ~> n d''',
-
-    2 ~> sn e''',
-    9 ~> sn e''',
-    1 ~> n d''',
-
-    2 ~> evenly (map n [e''', g''', e''', d''']),
-    6 ~> n e''',
-    1 ~> n c''',
-    3 ~> divide [
-      2 ~> n eflat''',
-      2 ~> n dflat''',
-      1 ~> n c''',
-      1 ~> n bflat''],
-
-    12 ~> n c'''
+  raster (l 1) [
+    8 .> a1,
+    8 .> a2
   ]
-
   where
+    a1 = raster (l 1 / 12) [
+        2 ~> sn a''',
+        4 ~> n c'''',
+        2 ~> sn d'''',
+        2 ~> n c'''',
+        11 ~> ns (divide [
+          2 ~> ramp a''' aflat''',
+          1 ~> ramp aflat''' a''',
+          8 .> constant a'''
+        ]),
+        3 ~> divide [
+          2 ~> ns (\ t -> ramp (pitch (-0.5) aflat''') g''' t |> constant g'''),
+          1 ~> n f'''
+        ],
+        11 ~> n d''',
+        1 ~> n c''',
+        0.75 ~> n d''',
+        0.75 ~> n c''',
+        10.5 ~> n d''',
+        10 .> empty,
+        1 ~> n c''',
+        1 ~> n d''',
+
+        2 ~> sn e''',
+        9 ~> sn e''',
+        1 ~> n d''',
+
+        2 ~> evenly (map n [e''', g''', e''', d''']),
+        6 ~> n e''',
+        1 ~> n c''',
+        2.4 ~> divide [
+          1 ~> n eflat''',
+          1 ~> n dflat''',
+          1 ~> n c''',
+          1 ~> n bflat''],
+
+        12.6 ~> n c'''
+      ]
+
+    a2 = raster (l 1 / 12) [
+        2 ~> sn a''',
+        4 ~> n c'''',
+        2 ~> n d'''',
+        2 ~> n c'''',
+        1 .> empty,
+        10 ~> n a''',
+        2 .> empty,
+        1 ~> n f''',
+        11 ~> n d''',
+        1 ~> n c''',
+        12 ~> n d''',
+
+        11 .> empty,
+        1 ~> n d''',
+        11 ~> sn e''',
+        1 ~> n d''',
+        11 ~> sn e''',
+        1 ~> n dflat''',
+        12 ~> n c'''
+      ]
+
     n :: Double -> Time -> Signal Double
     n frequency length =
       nadsr length $
