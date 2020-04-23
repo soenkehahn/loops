@@ -16,7 +16,7 @@ l n = n * 3
 leeloo :: Signal Double
 leeloo =
   fmap (* 0.6) $
-  focus (l 14) (l 6) $
+  focus (l 0) (l 4) $
   silence 0.03 |> chords +++
   melody +++
   drums +++
@@ -26,7 +26,8 @@ melody =
   fmap (* 0.1) $
   raster (l 1) [
     8 .> a1,
-    8 .> a2
+    8 .> a2,
+    16 .> b
   ]
   where
     a1 = raster (l 1 / 12) [
@@ -90,6 +91,47 @@ melody =
         12 ~> n c'''
       ]
 
+    b = raster (l 1 / 12) [
+        2 ~> sn d''',
+        8 ~> n f''',
+        1 ~> n g''',
+        1 ~> n f''',
+        11 ~> n d''',
+        1 ~> n d''',
+        2 ~> n c''',
+        10 ~> n a'',
+        12 .> empty,
+
+        2 ~> sn d''',
+        8 ~> n f''',
+        1 ~> n g''',
+        1 ~> n f''',
+        11 ~> n dflat''',
+        1 ~> n dflat''',
+        2 ~> n c''',
+        10 ~> n a'',
+        12 .> empty,
+
+        2 ~> sn d''',
+        8 ~> n f''',
+        1 ~> n g''',
+        1 ~> n f''',
+        10 ~> sn a''',
+        1 ~> n g''',
+        1 ~> n f''',
+        2 ~> sn a''',
+        10 ~> sn a''',
+        12 .> empty,
+
+        6 .> empty,
+        2 ~> sn bflat''',
+        2 ~> n a''',
+        2 ~> n g''',
+        11 ~> n e''',
+        1 ~> n g''',
+        12 ~> n f'''
+      ]
+
     n :: Double -> Time -> Signal Double
     n frequency length =
       nadsr length $
@@ -117,7 +159,7 @@ chords =
   raster (l 1) $
     8 .> partA :
     8 .> partA :
-    14 .> partB :
+    16 .> partB :
     8 .> partA :
     []
 
@@ -149,6 +191,8 @@ partB =
     chord [d'', fsharp'', c''', e'''] :
     chord [g', f'', bflat'', d'''] :
     chord [c'', e'', bflat'', d'''] :
+    chord [f'', c''', e''', a'''] :
+    chord [c'', bflat'', e''', g'''] :
     []
 
 chord frequencies =
@@ -177,12 +221,13 @@ phaser = onFinite inner
 
     wetness = 1
 
-    deviation = 0.001
+    deviation = 0.005
 
     frequency = l 1 / 2
 
 drums :: Signal Double
 drums =
+  repeat 2 $
   raster (l 1 / 4) $ fmap (1 ~>) $
     kick :
     kick :
