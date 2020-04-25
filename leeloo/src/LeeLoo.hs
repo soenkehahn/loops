@@ -148,10 +148,9 @@ melody =
       speedup (frequency length) wave
 
     nadsr length =
-      adsr (length + 0.3) (Adsr 0.02 0.2 0.5 0.3)
+      adsr (maxTime 0.22 length) (Adsr 0.02 0.2 0.5 0.3)
 
     wave = harmonics [1, 0.8, 1, 0.5, 0.9, 0.3, 0.2, 0.1]
-
 
 chords =
   phaser $
@@ -196,7 +195,7 @@ partB =
     []
 
 chord frequencies =
-  fanOut (adsr (l 1 * 1.1) (Adsr 0.01 0.2 0.7 1) . note) frequencies
+  fanOut (adsr (l 1 * 1.1 - 1) (Adsr 0.01 0.2 0.7 1) . note) frequencies
 
 note frequency = constSpeedup frequency $ harmonics [1, 0.5, 0.9, 0.3, 0.6]
 
@@ -307,7 +306,7 @@ drums =
     snare _len =
       fmap (* 0.35) $
       echo 0.1 0.1 $
-      adsr 0.15 (Adsr 0.01 0.1 0.1 0.01)
+      adsr 0.14 (Adsr 0.01 0.1 0.1 0.01)
       (random (-1, 1) +++
        fmap (* 0.25) (speedup (ramp 190 100 0.21) (harmonics [1, 0.2])))
 

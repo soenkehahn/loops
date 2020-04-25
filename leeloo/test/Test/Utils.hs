@@ -5,6 +5,12 @@ import Signal
 import Test.Hspec
 import Test.HUnit (assertFailure)
 import Signal.Epsilon
+import Control.Monad.ST
+
+getSample :: Signal a -> Time -> a
+getSample signal time = runST $ do
+  runSignal <- initialize signal
+  runSignal time
 
 test :: (HasCallStack, EpsilonEq a, Show a) => Time -> Time -> Signal a -> [a] -> IO ()
 test delta length signal expected =

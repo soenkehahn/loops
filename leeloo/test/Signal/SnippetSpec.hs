@@ -6,7 +6,6 @@ module Signal.SnippetSpec where
 
 import Prelude ()
 import qualified Prelude
-import Control.Monad.ST
 import Signal.Epsilon
 import Test.QuickCheck
 import Signal
@@ -145,11 +144,6 @@ instance Arbitrary TestSignal where
     Constant value ->
       (Constant <$> shrink value) ++
       [TakeConstant value 10]
-
-getSample :: Signal a -> Time -> a
-getSample signal time = runST $ do
-  runSignal <- initialize signal
-  runSignal time
 
 simpleDivide :: Num a => [Part a] -> Time -> Signal a
 simpleDivide [] len = silence len

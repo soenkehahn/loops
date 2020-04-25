@@ -9,6 +9,7 @@ module Signal (
   module Signal,
 ) where
 
+import GHC.Stack
 import Control.Exception
 import Control.Monad.ST
 import Data.ByteString.Conversion
@@ -290,12 +291,22 @@ data Adsr = Adsr {
   release :: Time
 }
 
-adsr :: Time -> Adsr -> Signal Double -> Signal Double
-adsr length (Adsr attack decay sustain release) signal =
-  envelope /\ signal
+instance Show Adsr where
+  show (Adsr a d s r) =
+    "(Adsr " ++ show a ++ " " ++ show d ++ " " ++ show s ++ " " ++ show r ++ ")"
+
+
+adsr :: HasCallStack => Time -> Adsr -> Signal Double -> Signal Double
+adsr length config@(Adsr attack decay sustain release) signal =
+  if length `lt` (attack + decay)
+    then error $
+      show config ++ " requires a length longer than " ++
+      show (attack + decay) ++ ", given length: " ++
+      show length
+    else envelope /\ signal
   where
     envelope =
       ramp 0 1 attack |>
       ramp 1 sustain decay |>
-      take (length - attack - decay - release) (constant sustain) |>
+      take (length - attack - decay) (constant sustain) |>
       ramp sustain 0 release
