@@ -1,7 +1,6 @@
 name: leeloo
 ghc-options:
   - -fdefer-typed-holes
-  # - -fdefer-type-errors
   - -O1
   - -Wall
   - -Wno-name-shadowing
@@ -31,3 +30,11 @@ tests:
       - hspec
       - HUnit
       - QuickCheck
+
+benchmarks:
+  benchmark:
+    main: ../benchmark/Main.hs
+    source-dirs:
+      - src
+    dependencies:
+      - criterion

@@ -67,6 +67,11 @@ data Signal a = Signal {
   initialize :: forall s . ST s (Time -> ST s a)
 } deriving (Functor)
 
+getSample :: Signal a -> Time -> a
+getSample signal time = runST $ do
+  runSignal <- initialize signal
+  runSignal time
+
 minLength :: Signal a -> Signal b -> Length
 minLength a b = case (signalLength a, signalLength b) of
   (Finite a, Finite b) -> Finite $ minTime a b
