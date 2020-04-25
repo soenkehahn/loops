@@ -134,7 +134,7 @@ melody =
 
     n :: Double -> Time -> Signal Double
     n frequency length =
-      nadsr length $
+      nadsr length /\
       constSpeedup frequency wave
 
     sn frequency =
@@ -144,7 +144,7 @@ melody =
 
     ns :: (Time -> Signal Double) -> Time -> Signal Double
     ns frequency length =
-      nadsr length $
+      nadsr length /\
       speedup (frequency length) wave
 
     nadsr length =
@@ -195,7 +195,8 @@ partB =
     []
 
 chord frequencies =
-  fanOut (adsr (l 1 * 1.1 - 1) (Adsr 0.01 0.2 0.7 1) . note) frequencies
+  fanOut frequencies $ \ frequency ->
+    adsr (l 1 * 1.1 - 1) (Adsr 0.01 0.2 0.7 1) /\ note frequency
 
 note frequency = constSpeedup frequency $ harmonics [1, 0.5, 0.9, 0.3, 0.6]
 
@@ -298,7 +299,7 @@ drums =
     kick _len =
       fmap (* 1.3) $
       fmap (compress 0.92) $
-      adsr len (Adsr 0.01 0.02 0 0) $
+      adsr len (Adsr 0.01 0.02 0 0) /\
       speedup (ramp 60 50 len) sine
 
     len = 0.05
@@ -306,7 +307,7 @@ drums =
     snare _len =
       fmap (* 0.35) $
       echo 0.1 0.1 $
-      adsr 0.14 (Adsr 0.01 0.1 0.1 0.01)
+      adsr 0.14 (Adsr 0.01 0.1 0.1 0.01) /\
       (random (-1, 1) +++
        fmap (* 0.25) (speedup (ramp 190 100 0.21) (harmonics [1, 0.2])))
 

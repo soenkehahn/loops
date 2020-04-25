@@ -3,9 +3,9 @@ module Signal.Utils where
 import Signal
 import Data.List
 
-fanOut :: Num b => (a -> Signal b) -> [a] -> Signal b
-fanOut signal =
-    foldl' (\ acc a -> acc +++ signal a) empty
+fanOut :: Num b => [a] -> (a -> Signal b) -> Signal b
+fanOut list signal =
+    foldl' (\ acc a -> acc +++ signal a) empty list
 
 harmonics :: [Double] -> Signal Double
 harmonics weights =

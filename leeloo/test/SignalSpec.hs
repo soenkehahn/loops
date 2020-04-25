@@ -196,23 +196,27 @@ spec = do
 
   describe "adsr" $ do
     it "allows to have an attack" $ do
-      test 0.1 2 (adsr 1 (Adsr 0.3 0 1 0) (constant 10)) [0, 10 / 3, 10 * 2 / 3, 10, 10, 10, 10, 10, 10, 10]
+      test 0.1 2 (adsr 1 (Adsr 0.3 0 1 0))
+        [0, 1 / 3, 1 * 2 / 3, 1, 1, 1, 1, 1, 1, 1]
 
     it "allows to have a release after the length" $ do
-      test 0.1 2 (adsr 1 (Adsr 0 0 1 0.3) (constant 10)) [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10 * 2 / 3, 10 / 3]
+      test 0.1 2 (adsr 1 (Adsr 0 0 1 0.3))
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 * 2 / 3, 1 / 3]
 
     it "allows to have decay and sustain" $ do
-      test 0.1 2 (adsr 1 (Adsr 0 0.2 0.5 0) (constant 10)) [10, 7.5, 5, 5, 5, 5, 5, 5, 5, 5]
+      test 0.1 2 (adsr 1 (Adsr 0 0.2 0.5 0))
+        [1, 0.75, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
 
     it "release ramp starts at sustain volume" $ do
-      test 0.1 2 (adsr 1 (Adsr 0 0.2 0.5 0.3) (constant 10)) [10, 7.5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5 * 2 / 3, 5 / 3]
+      test 0.1 2 (adsr 1 (Adsr 0 0.2 0.5 0.3))
+        [1, 0.75, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 * 2 / 3, 0.5 / 3]
 
     it "crashes when the sum of attack and decay is longer then the given length" $ do
-      print (getSample (adsr 1 (Adsr 0.5 0.7 0 0.8) (constant 0)) 0) `shouldThrow`
+      print (getSample (adsr 1 (Adsr 0.5 0.7 0 0.8)) 0) `shouldThrow`
         errorCall "(Adsr 0.5 0.7 0.0 0.8) requires a length longer than 1.2, given length: 1.0"
 
     it "doesn't include the release in the given length" $ do
-      getSample (adsr 1 (Adsr 0.4 0.4 0 0.4) (constant 0)) 0 `shouldBeCloseTo` 0
+      getSample (adsr 1 (Adsr 0.4 0.4 0 0.4)) 0 `shouldBeCloseTo` 0
 
   describe "clip" $ do
     it "limits the signal at the upper limit" $ do

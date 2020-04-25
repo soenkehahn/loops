@@ -296,14 +296,14 @@ instance Show Adsr where
     "(Adsr " ++ show a ++ " " ++ show d ++ " " ++ show s ++ " " ++ show r ++ ")"
 
 
-adsr :: HasCallStack => Time -> Adsr -> Signal Double -> Signal Double
-adsr length config@(Adsr attack decay sustain release) signal =
+adsr :: HasCallStack => Time -> Adsr -> Signal Double
+adsr length config@(Adsr attack decay sustain release) =
   if length `lt` (attack + decay)
     then error $
       show config ++ " requires a length longer than " ++
       show (attack + decay) ++ ", given length: " ++
       show length
-    else envelope /\ signal
+    else envelope
   where
     envelope =
       ramp 0 1 attack |>
