@@ -16,7 +16,6 @@ module Signal.Snippet (
 
 import Signal
 import Signal.Epsilon
-import Control.Monad
 import Control.Monad.ST
 import Data.List (foldl')
 import Data.Vector (Vector, (!), fromList)
@@ -66,12 +65,14 @@ mkSnippets parts length =
       let timeInGrid = Time weight * timeUnit
       in (time + timeInGrid, PreSnippet time (signal timeInGrid) : acc)
 
-partsLength :: [PreSnippet a] -> Time -> Maybe Time
-partsLength snippets length = do
-  snippetTimes <- forM snippets $ \ snippet -> do
-    length <- end $ preSnippetSignal snippet
-    return (preSnippetStart snippet + length)
-  return $ maxTime length (maximumTime snippetTimes)
+partsLength :: [PreSnippet a] -> Time -> Length
+partsLength snippets length =
+  maxLength (Finite length) maxSnippetLength
+  where
+    snippetLength :: PreSnippet a -> Length
+    snippetLength snippet =
+      mapLength (+ preSnippetStart snippet) (signalLength (preSnippetSignal snippet))
+    maxSnippetLength = foldl' maxLength (Finite 0) (map snippetLength snippets)
 
 _signalVectorConfiguration :: [Part a] -> Time -> (Int, Time)
 _signalVectorConfiguration parts length =
@@ -105,15 +106,15 @@ mkSignalVector (vectorLength, tailStart) snippets = do
   return $
     let step = tailStart / fromIntegral vectorLength
         mkCell start =
-          prune (start, Just (start + tailStart / fromIntegral vectorLength)) initializedSnippets
+          prune (start, Finite (start + tailStart / fromIntegral vectorLength)) initializedSnippets
         vector = Data.Vector.fromList $ map mkCell (init [0, step .. tailStart])
-        tail = prune (tailStart, Nothing) initializedSnippets
+        tail = prune (tailStart, Infinite) initializedSnippets
     in SignalVector vector tailStart tail
 
 data Snippet s a
   = Snippet {
     snippetStart :: Time,
-    snippetLength :: Maybe Time,
+    snippetLength :: Length,
     runSnippet :: Time -> ST s a
   }
 
@@ -133,15 +134,21 @@ runSnippets snippets time = case snippets of
 
 inRange :: Snippet s a -> Time -> Bool
 inRange (Snippet start length _) time = case length of
-  Nothing -> not (time `lt` start)
-  Just length ->
+  Infinite -> not (time `lt` start)
+  Finite length ->
     not (time `lt` start) &&
     time `lt` (start + length)
 
-prune :: (Time, Maybe Time) -> [Snippet s a] -> [Snippet s a]
+prune :: (Time, Length) -> [Snippet s a] -> [Snippet s a]
 prune range = filter (withinRange range)
 
-withinRange :: (Time, Maybe Time) -> Snippet s a -> Bool
+withinRange :: (Time, Length) -> Snippet s a -> Bool
 withinRange (lowerEnd, upperEnd) snippet =
-  maybe True (\ length -> lowerEnd `lt` (snippetStart snippet + length)) (snippetLength snippet) &&
-  maybe True (\ upperEnd -> snippetStart snippet `lt` upperEnd) upperEnd
+  not tooEarly && not tooLate
+  where
+    tooEarly = case snippetLength snippet of
+      Infinite -> False
+      Finite length -> (snippetStart snippet + length) `lt` lowerEnd
+    tooLate = case upperEnd of
+      Infinite -> False
+      Finite upperEnd -> upperEnd `lt` snippetStart snippet

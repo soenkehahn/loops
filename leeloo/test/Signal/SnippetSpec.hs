@@ -116,7 +116,7 @@ data TestSignal
 
 toSignal :: TestSignal -> Signal Double
 toSignal = \case
-  TakeConstant value length -> Signal (Just length) $ do
+  TakeConstant value length -> Signal (Finite length) $ do
     return $ \ time -> do
       return $ if not (time `lt` 0) && time `lt` length
         then value
@@ -170,5 +170,7 @@ goldenTests = describe "property tests" $ do
     in \ testSignals ->
     let parts = map (\ (weight, testSignal) -> weight ~> \ _time -> toSignal testSignal) $ Prelude.zip weights testSignals
     in counterexample (show $ Prelude.zip weights testSignals) $ do
-      end (divide parts length) `shouldBeCloseTo` end (simpleDivide parts length)
-      getSample (divide parts length) time `shouldBeCloseTo` getSample (simpleDivide parts length) time
+      signalLength (divide parts length) `shouldBeCloseTo`
+        signalLength (simpleDivide parts length)
+      getSample (divide parts length) time `shouldBeCloseTo`
+        getSample (simpleDivide parts length) time

@@ -27,7 +27,7 @@ spec = do
   describe "deltas" $ do
     it "doesn't produce too many deltas on floating point rounding errors" $ do
       let end = 1.00000000000001
-      deltas 0.5 (Just end) `shouldBeCloseTo` [0.0, 0.5]
+      deltas 0.5 (Finite end) `shouldBeCloseTo` [0.0, 0.5]
 
   describe "fromList" $ do
     it "converts a list into a signal" $ do
@@ -39,7 +39,7 @@ spec = do
 
     it "handles shorter input signals correctly" $ do
       let signal = take 2 (take 1 (constant 42))
-      end signal `shouldBeCloseTo` Just 1
+      signalLength signal `shouldBeCloseTo` Finite 1
       signal `shouldYield` [42, 42 :: Double]
 
   describe "skip" $ do
@@ -64,7 +64,7 @@ spec = do
 
     it "returns an infinite signal" $ do
       let signal = simpleSignal $ \ time -> time * 7
-      end signal `shouldBeCloseTo` Nothing
+      signalLength signal `shouldBeCloseTo` Infinite
 
   describe "phase" $ do
     it "ramps up to TAU in one second" $ do
@@ -101,7 +101,7 @@ spec = do
   describe "constSpeedup" $ do
     it "speeds the signal up by a constant" $ do
       let signal = constSpeedup 2 $ ramp 0 1 1
-      end signal `shouldBeCloseTo` Just 0.5
+      signalLength signal `shouldBeCloseTo` Finite 0.5
       test 0.1 10 signal [0, 0.2, 0.4, 0.6, 0.8 :: Double]
 
   describe "applicative interface" $ do
@@ -131,7 +131,7 @@ spec = do
     it "repeats a signal infinitely" $ do
       let signal = cycle (ramp 0 1 1)
       test 0.5 3 signal [0, 0.5, 0, 0.5, 0, 0.5]
-      end signal `shouldBeCloseTo` Nothing
+      signalLength signal `shouldBeCloseTo` Infinite
 
     it "works for infinite signals" $ do
       let signal = cycle (ramp 0 1 1 |> constant 23)
