@@ -156,6 +156,11 @@ zipWith f a b = Signal (minEnd a b) $ do
     b <- runB time
     return $ f a b
 
+simpleSignal :: (Time -> a) -> Signal a
+simpleSignal function = Signal Nothing $ do
+  return $ \ time -> do
+    return $ function time
+
 -- audio signals
 
 tau :: Double

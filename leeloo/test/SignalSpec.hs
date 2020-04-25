@@ -57,6 +57,15 @@ spec = do
       let signal = zip (constant 23) (constant 42)
       test 0.5 1 signal [(23, 42), (23, 42) :: (Double, Double)]
 
+  describe "simpleSignal" $ do
+    it "allows to turn a simple function over time into a signal" $ do
+      let signal = simpleSignal $ \ time -> time * 7
+      test 0.5 2 signal [0, 3.5, 7, 10.5]
+
+    it "returns an infinite signal" $ do
+      let signal = simpleSignal $ \ time -> time * 7
+      end signal `shouldBeCloseTo` Nothing
+
   describe "phase" $ do
     it "ramps up to TAU in one second" $ do
       phase `shouldYield` [0, tau / 2, 0]
