@@ -5,16 +5,18 @@
 module Signal.Core where
 
 import Signal.Epsilon
-import Control.Monad
 import System.IO
 import Data.ByteString.Conversion
 import Control.Monad.ST
+import Data.Traversable
 import Control.Monad.ST.Unsafe
 import qualified Data.ByteString.Char8 as BS
+import Data.Vector.Storable (Storable, Vector, generate)
+import qualified Data.Vector.Storable as Vec
 
 newtype Time = Time {
   fromTime :: Double
-} deriving (Num, Fractional, Enum)
+} deriving (Num, Fractional, Enum, Storable)
 
 instance Show Time where
   show (Time t) = show t
@@ -78,34 +80,45 @@ getSample signal time = runST $ do
   runSignal <- initialize signal
   runSignal time
 
-getSampleTimes :: Time -> Length -> [Time]
+getSampleTimes :: Time -> Time -> Vector Time
 getSampleTimes delta end = case end of
-  Finite end -> takeWhile (`lt` end) [0, delta ..]
-  Infinite -> [0, delta ..]
+  end -> generate (epsilonCeiling (end / delta)) $ \ i ->
+    fromIntegral i * delta
+  where
+    epsilonCeiling :: Time -> Int
+    epsilonCeiling x =
+      let c = ceiling $ fromTime x
+      in if Time (realToFrac (c - 1)) ==== x then c - 1 else c
 
-runOnDeltas :: Signal a -> [Time] -> [a]
-runOnDeltas signal sampleTimes = runST $ do
+runOnTimes :: Storable a => Signal a -> Vector Time -> Vector a
+runOnTimes signal sampleTimes = runST $ do
     runSignal <- initialize signal
-    mapM runSignal sampleTimes
+    Vec.mapM runSignal sampleTimes
 
 toList :: Time -> Signal a -> [a]
-toList delta signal = runOnDeltas signal $ getSampleTimes delta (end signal)
+toList delta signal = case end signal of
+  Infinite -> error "toList: infinite signals not supported"
+  Finite end -> runST $ do
+    runSignal <- initialize signal
+    forM (Vec.toList (getSampleTimes delta end)) $ \ time ->
+      runSignal time
 
-foreach :: Signal a -> [Time] -> (a -> IO ()) -> IO ()
-foreach signal sampleTimes action = mapM_ action $ runOnDeltas signal sampleTimes
+toVector :: Storable a => Time -> Signal a -> Vector a
+toVector delta signal = case end signal of
+  Infinite -> error "toVector: infinite signals not supported"
+  Finite end -> runOnTimes signal $ getSampleTimes delta end
 
 printSamples :: Signal Double -> IO ()
-printSamples signal = do
-  case end signal of
-    Infinite -> error "infinite signal"
-    Finite end -> do
-      hPutStrLn stderr ("end: " ++ show end)
-      let sampleTimes = getSampleTimes (1 / 44100) (Finite end)
-      unsafeSTToIO $ do
-        runSignal <- initialize signal
-        forM_ sampleTimes $ \ time -> do
-          sample <- runSignal time
-          unsafeIOToST $ BS.putStrLn $ toByteString' sample
+printSamples signal = case end signal of
+  Infinite -> error "printSamples: infinite signals not supported"
+  Finite end -> do
+    hPutStrLn stderr ("end: " ++ show end)
+    let sampleTimes = getSampleTimes (1 / 44100) end
+    unsafeSTToIO $ do
+      runSignal <- initialize signal
+      Vec.forM_ sampleTimes $ \ time -> do
+        sample <- runSignal time
+        unsafeIOToST $ BS.putStrLn $ toByteString' sample
 
 simpleSignal :: (Time -> a) -> Signal a
 simpleSignal function = Signal Infinite $ do

@@ -6,6 +6,7 @@ import Signal
 import Signal.Core
 import Test.Hspec hiding (focus)
 import Test.Utils
+import qualified Data.Vector.Storable as Vec
 
 spec :: Spec
 spec = do
@@ -70,7 +71,8 @@ spec = do
 
     it "takes varying time deltas into account" $ do
       let signal = integral (fromList 1 [0, 3, 5])
-      runOnDeltas signal [0, 1.2, 1.7, 2.2] `shouldBeCloseTo` [0, 3.6, 5.1, 7.6]
+      runOnTimes signal (Vec.fromList [0, 1.2, 1.7, 2.2])
+        `shouldBeCloseTo` Vec.fromList [0, 3.6, 5.1, 7.6]
 
     it "always starts with 0" $ do
       test 1 1 (integral (constant 42)) [0 :: Double]

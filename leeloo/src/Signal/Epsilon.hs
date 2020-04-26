@@ -3,7 +3,8 @@
 
 module Signal.Epsilon where
 
-import qualified Data.Vector as Vec
+import qualified Data.Vector
+import qualified Data.Vector.Storable
 
 class EpsilonOrd a where
   compare :: a -> a -> Ordering
@@ -47,8 +48,13 @@ instance EpsilonEq a => EpsilonEq [a] where
     ([], []) -> True
     _ -> False
 
-instance EpsilonEq a => EpsilonEq (Vec.Vector a) where
-  as ==== bs = Vec.toList as ==== Vec.toList bs
+instance EpsilonEq a => EpsilonEq (Data.Vector.Vector a) where
+  as ==== bs = Data.Vector.toList as ==== Data.Vector.toList bs
+
+instance (EpsilonEq a, Data.Vector.Storable.Storable a) =>
+  EpsilonEq (Data.Vector.Storable.Vector a) where
+    as ==== bs =
+      Data.Vector.Storable.toList as ==== Data.Vector.Storable.toList bs
 
 instance EpsilonEq a => EpsilonEq (Maybe a) where
   Nothing ==== Nothing = True

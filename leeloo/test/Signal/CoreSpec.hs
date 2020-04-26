@@ -8,6 +8,7 @@ import Prelude ()
 import qualified Prelude
 import System.IO
 import System.IO.Silently
+import qualified Data.Vector.Storable as Vec
 
 spec :: Spec
 spec = do
@@ -28,9 +29,17 @@ spec = do
       toList 0.2 (take (constant 23) 0.6) `shouldBe` [23, 23, 23 :: Double]
 
   describe "getSampleTimes" $ do
+    it "returns all the sample times for the given length" $ do
+      getSampleTimes 0.1 1 `shouldBeCloseTo`
+        Vec.fromList [0, 0.1 .. 0.9]
+
+    it "stays within the given length when the length is not divisible by the delta" $ do
+      getSampleTimes 0.3 0.8 `shouldBeCloseTo`
+        Vec.fromList [0, 0.3, 0.6]
+
     it "doesn't produce too many deltas on floating point rounding errors" $ do
       let end = 1.00000000000001
-      getSampleTimes 0.5 (Finite end) `shouldBeCloseTo` [0.0, 0.5]
+      getSampleTimes 0.5 end `shouldBeCloseTo` Vec.fromList [0.0, 0.5]
 
   describe "simpleSignal" $ do
     it "allows to turn a simple function over time into a signal" $ do
