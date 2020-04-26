@@ -72,7 +72,7 @@ partsLength snippets length =
   where
     snippetLength :: PreSnippet a -> Length
     snippetLength snippet =
-      mapLength (+ preSnippetStart snippet) (signalLength (preSnippetSignal snippet))
+      mapLength (+ preSnippetStart snippet) (end (preSnippetSignal snippet))
     maxSnippetLength = foldl' maxLength (Finite 0) (map snippetLength snippets)
 
 _signalVectorConfiguration :: [Part a] -> Time -> (Int, Time)

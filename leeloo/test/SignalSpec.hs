@@ -19,7 +19,7 @@ spec = do
 
     it "handles shorter input signals correctly" $ do
       let signal = take (take (constant 42) 1) 2
-      signalLength signal `shouldBeCloseTo` Finite 1
+      end signal `shouldBeCloseTo` Finite 1
       signal `shouldYield` [42, 42 :: Double]
 
   describe "skip" $ do
@@ -56,7 +56,7 @@ spec = do
   describe "constSpeedup" $ do
     it "speeds the signal up by a constant" $ do
       let signal = constSpeedup 2 $ ramp 0 1 1
-      signalLength signal `shouldBeCloseTo` Finite 0.5
+      end signal `shouldBeCloseTo` Finite 0.5
       test 0.1 10 signal [0, 0.2, 0.4, 0.6, 0.8 :: Double]
 
   describe "speedup" $ do
@@ -97,7 +97,7 @@ spec = do
     it "repeats a signal infinitely" $ do
       let signal = cycle (ramp 0 1 1)
       test 0.5 3 signal [0, 0.5, 0, 0.5, 0, 0.5]
-      signalLength signal `shouldBeCloseTo` Infinite
+      end signal `shouldBeCloseTo` Infinite
 
     it "works for infinite signals" $ do
       let signal = cycle (ramp 0 1 1 |> constant 23)
@@ -142,9 +142,9 @@ spec = do
     it "returns silences of the given length" $ do
       test 1 4 (silence 3) [0, 0, 0 :: Integer]
 
-  describe "fill" $ do
+  describe "withEnd" $ do
     it "plays back the given signal but fills the rest with silence" $ do
-      let signal = fill 2 (take (constant 42) 1)
+      let signal = withEnd 2 (take (constant 42) 1)
       test 0.5 4 signal [42, 42, 0, 0 :: Integer]
 
   describe "ramp" $ do

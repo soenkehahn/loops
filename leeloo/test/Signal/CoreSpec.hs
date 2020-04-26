@@ -36,4 +36,4 @@ spec = do
 
     it "returns an infinite signal" $ do
       let signal = simpleSignal $ \ time -> time * 7
-      signalLength signal `shouldBeCloseTo` Infinite
+      end signal `shouldBeCloseTo` Infinite

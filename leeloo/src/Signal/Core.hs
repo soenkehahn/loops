@@ -58,14 +58,14 @@ maxLength a b = case (a, b) of
   (Infinite, _) -> Infinite
 
 data Signal a = Signal {
-  signalLength :: Length,
+  end :: Length,
   initialize :: forall s . ST s (Time -> ST s a)
 } deriving (Functor)
 
 instance Applicative Signal where
   pure a = Signal Infinite $ return $ \ _time -> return a
   fSignal <*> xSignal =
-    Signal (minLength (signalLength fSignal) (signalLength xSignal)) $ do
+    Signal (minLength (end fSignal) (end xSignal)) $ do
       runF <- initialize fSignal
       runX <- initialize xSignal
       return $ \ time -> do
@@ -87,14 +87,14 @@ runOnDeltas signal deltas = runST $ do
     mapM runSignal deltas
 
 toList :: Time -> Signal a -> [a]
-toList delta signal = runOnDeltas signal $ deltas delta (signalLength signal)
+toList delta signal = runOnDeltas signal $ deltas delta (end signal)
 
 foreach :: Signal a -> [Time] -> (a -> IO ()) -> IO ()
 foreach signal deltas action = mapM_ action $ runOnDeltas signal deltas
 
 printSamples :: Signal Double -> IO ()
 printSamples signal = do
-  case signalLength signal of
+  case end signal of
     Infinite -> error "infinite signal"
     Finite end -> do
       hPutStrLn stderr ("length: " ++ show end)

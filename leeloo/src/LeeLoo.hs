@@ -208,7 +208,7 @@ phaser :: Signal Double -> Signal Double
 phaser = onFinite inner
   where
     onFinite :: (Signal Double -> Signal Double) -> (Signal Double -> Signal Double)
-    onFinite onInfinite signal = case signalLength signal of
+    onFinite onInfinite signal = case end signal of
       Infinite -> onInfinite signal
       Finite end ->
         take (onInfinite (signal |> constant 0)) end

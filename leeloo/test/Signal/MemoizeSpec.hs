@@ -40,8 +40,8 @@ spec = do
     it "works for empty signals" $ do
       let signal :: Signal Double
           signal = memoize 3 empty
-      signalLength signal `shouldBeCloseTo` Finite 0
+      end signal `shouldBeCloseTo` Finite 0
 
     it "throws an exception for infinite signals" $ do
-      print (signalLength (memoize 3 (constant (0 :: Double)))) `shouldThrow`
+      print (end (memoize 3 (constant (0 :: Double)))) `shouldThrow`
         errorCall "memoize not implemented for infinite signals"

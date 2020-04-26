@@ -10,7 +10,7 @@ import Signal
 import Prelude ()
 
 memoize :: forall a . Storable a => Int -> Signal a -> Signal a
-memoize arrayLength signal = case signalLength signal of
+memoize arrayLength signal = case end signal of
   Finite length | length ==== 0 -> empty
   Finite length ->
     let array :: Vector a
@@ -18,7 +18,7 @@ memoize arrayLength signal = case signalLength signal of
           runSignal <- initialize signal
           generateM arrayLength $ \ index -> do
             runSignal (_toTime length arrayLength index)
-    in Signal (signalLength signal) $ do
+    in Signal (end signal) $ do
       return $ \ time -> do
         return $ array ! (_toIndex length arrayLength time)
   Infinite -> error "memoize not implemented for infinite signals"
@@ -32,6 +32,6 @@ _toTime length arrayLength index =
   length * fromIntegral index / fromIntegral arrayLength
 
 mem :: Storable a => Signal a -> Signal a
-mem signal = case signalLength signal of
+mem signal = case end signal of
   Finite length -> memoize (round $ fromTime (length * 44100)) signal
   Infinite -> error "memoize not implemented for infinite signals"

@@ -33,10 +33,13 @@ take (Signal mEnd signal) length = Signal end' signal
 
 skip :: Time -> Signal a -> Signal a
 skip length signal =
-  Signal (mapLength (\ end -> maxTime 0 (end - length)) (signalLength signal)) $ do
+  Signal (mapLength (\ end -> maxTime 0 (end - length)) (end signal)) $ do
     runSignal <- initialize signal
     return $ \ time -> do
       runSignal (time + length)
+
+withEnd :: Num a => Time -> Signal a -> Signal a
+withEnd length signal = take (signal |> constant 0) length
 
 focus :: Time -> Time -> Signal a -> Signal a
 focus start length signal = take (skip start signal) length
@@ -62,7 +65,7 @@ empty = Signal (Finite 0) $ return $ \ time ->
   error ("empty: shouldn't be called. (" ++ show time ++ ")")
 
 zip :: Signal a -> Signal b -> Signal (a, b)
-zip a b = Signal (minLength (signalLength a) (signalLength b)) $ do
+zip a b = Signal (minLength (end a) (end b)) $ do
   runA <- initialize a
   runB <- initialize b
   return $ \ time -> do
@@ -71,7 +74,7 @@ zip a b = Signal (minLength (signalLength a) (signalLength b)) $ do
     return (a, b)
 
 zipWith :: (a -> b -> c) -> Signal a -> Signal b -> Signal c
-zipWith f a b = Signal (minLength (signalLength a) (signalLength b)) $ do
+zipWith f a b = Signal (minLength (end a) (end b)) $ do
   runA <- initialize a
   runB <- initialize b
   return $ \ time -> do
@@ -101,14 +104,14 @@ clip (lower, upper) x = max lower (min upper x)
 
 constSpeedup :: Double -> Signal a -> Signal a
 constSpeedup (Time -> factor) signal =
-  Signal (mapLength (/ factor) (signalLength signal)) $ do
+  Signal (mapLength (/ factor) (end signal)) $ do
     runSignal <- initialize signal
     return $ \ time -> do
       runSignal (time * factor)
 
 speedup :: Signal Double -> Signal a -> Signal a
-speedup factorSignal inputSignal = case signalLength inputSignal of
-  Infinite -> Signal (signalLength factorSignal) $ do
+speedup factorSignal inputSignal = case end inputSignal of
+  Infinite -> Signal (end factorSignal) $ do
     runFactorSignal <- initialize $ integral factorSignal
     runInputSignal <- initialize inputSignal
     return $ \ time -> do
@@ -117,7 +120,7 @@ speedup factorSignal inputSignal = case signalLength inputSignal of
   Finite _ -> error "speedup not supported for finite input signals"
 
 integral :: Signal Double -> Signal Double
-integral signal = Signal (signalLength signal) $ do
+integral signal = Signal (end signal) $ do
   ref <- newSTRef 0
   lastTimeRef <- newSTRef 0
   runSignal <- initialize signal
@@ -131,10 +134,10 @@ integral signal = Signal (signalLength signal) $ do
     return next
 
 (|>) :: Signal a -> Signal a -> Signal a
-a |> b = case signalLength a of
+a |> b = case end a of
   Infinite -> a
   Finite aEnd ->
-    Signal (mapLength (+ aEnd) (signalLength b)) $ do
+    Signal (mapLength (+ aEnd) (end b)) $ do
       runA <- initialize a
       runB <- initialize b
       return $ \ time -> do
@@ -149,7 +152,7 @@ repeat n signal =
     else signal |> repeat (n - 1) signal
 
 cycle :: Signal a -> Signal a
-cycle signal = case signalLength signal of
+cycle signal = case end signal of
   Infinite -> signal
   Finite end -> Signal Infinite $ do
     runSignal <- initialize signal
@@ -160,10 +163,10 @@ infixr 6 +++
 (+++) :: Num a => Signal a -> Signal a -> Signal a
 a +++ b =
   let isValidTime :: Signal a -> Time -> Bool
-      isValidTime signal time = case signalLength signal of
+      isValidTime signal time = case end signal of
         Infinite -> True
         Finite end -> time `lt` end
-  in Signal (maxLength (signalLength a) (signalLength b)) $ do
+  in Signal (maxLength (end a) (end b)) $ do
     runA <- initialize a
     runB <- initialize b
     return $ \ time -> do
@@ -183,9 +186,6 @@ a /\ b = (*) <$> a <*> b
 
 silence :: Num a => Time -> Signal a
 silence length = take (constant 0) length
-
-fill :: Num a => Time -> Signal a -> Signal a
-fill length signal = take (signal |> constant 0) length
 
 saw :: Signal Double
 saw = fmap (project (0, tau) (-1, 1)) phase
