@@ -8,6 +8,7 @@ import Signal.Snippet
 import Signal.Utils
 import Signal.Notes
 import Signal.Transformations
+import Signal.Memoize
 import Prelude ()
 
 l :: Time -> Time
@@ -15,11 +16,12 @@ l n = n * 3
 
 leeloo :: Signal Double
 leeloo =
-  fmap (* 0.6) $
-  focus (l 0) (l 4) $
+  fmap (* 0.5) $
+  focus (l 0) (l 8) $
   silence 0.03 |> chords +++
   melody +++
   drums +++
+  take (l 40) cymbals +++
   empty
 
 melody =
@@ -316,3 +318,38 @@ compress 0 x = x
 compress _ 0 = 0
 compress tweak x | x > 0 = - (((1 - tweak) ** x) - 1) / tweak
 compress tweak x = - compress tweak (- x)
+
+cymbals =
+  raster (l 1 / 12) $ concat $ replicate (40 * 4) $
+  [
+    1.02 .> empty,
+    0.97 .> fmap (* 0.4) cymbal,
+    1.01 .> cymbal
+  ]
+
+cymbal =
+  mem $
+  take (l 1 / 6) $
+  env /\ sound
+  where
+    env :: Signal Double
+    env = simpleSignal $
+      \ time -> 500 ** (- fromTime time)
+
+    sound =
+      fmap (* 0.06) $
+      mix $
+        fmap (* 0.4) (random (-1, 1)) :
+        sines :
+        []
+
+    sines =
+      fmap (* 0.6) $
+      mix $ map (\ (volume, frequency) -> fmap (* volume) (constSpeedup frequency sine)) $
+        (1, 3500) :
+        (0.4, 7000) :
+        (0.2, 14000) :
+        (0.2, 17500) :
+        (0.8, 5000) :
+        (0.6, 10000) :
+        []
