@@ -24,10 +24,10 @@ spec = do
       toList 0.3 (take (constant 23) 0.9) `shouldBe` [23, 23, 23 :: Double]
       toList 0.2 (take (constant 23) 0.6) `shouldBe` [23, 23, 23 :: Double]
 
-  describe "deltas" $ do
+  describe "sampleTimes" $ do
     it "doesn't produce too many deltas on floating point rounding errors" $ do
       let end = 1.00000000000001
-      deltas 0.5 (Finite end) `shouldBeCloseTo` [0.0, 0.5]
+      sampleTimes 0.5 (Finite end) `shouldBeCloseTo` [0.0, 0.5]
 
   describe "simpleSignal" $ do
     it "allows to turn a simple function over time into a signal" $ do

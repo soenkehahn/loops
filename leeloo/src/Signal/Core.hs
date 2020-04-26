@@ -76,21 +76,21 @@ getSample signal time = runST $ do
   runSignal <- initialize signal
   runSignal time
 
-deltas :: Time -> Length -> [Time]
-deltas delta end = case end of
+sampleTimes :: Time -> Length -> [Time]
+sampleTimes delta end = case end of
   Finite end -> takeWhile (`lt` end) [0, delta ..]
   Infinite -> [0, delta ..]
 
 runOnDeltas :: Signal a -> [Time] -> [a]
-runOnDeltas signal deltas = runST $ do
+runOnDeltas signal sampleTimes = runST $ do
     runSignal <- initialize signal
-    mapM runSignal deltas
+    mapM runSignal sampleTimes
 
 toList :: Time -> Signal a -> [a]
-toList delta signal = runOnDeltas signal $ deltas delta (end signal)
+toList delta signal = runOnDeltas signal $ sampleTimes delta (end signal)
 
 foreach :: Signal a -> [Time] -> (a -> IO ()) -> IO ()
-foreach signal deltas action = mapM_ action $ runOnDeltas signal deltas
+foreach signal sampleTimes action = mapM_ action $ runOnDeltas signal sampleTimes
 
 printSamples :: Signal Double -> IO ()
 printSamples signal = do
@@ -98,7 +98,7 @@ printSamples signal = do
     Infinite -> error "infinite signal"
     Finite end -> do
       hPutStrLn stderr ("length: " ++ show end)
-      foreach signal (deltas (1 / 44100) (Finite end)) $ \ sample -> do
+      foreach signal (sampleTimes (1 / 44100) (Finite end)) $ \ sample -> do
         BS.putStrLn $ toByteString' sample
 
 simpleSignal :: (Time -> a) -> Signal a
