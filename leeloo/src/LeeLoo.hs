@@ -17,7 +17,7 @@ l n = n * 3
 leeloo :: Signal Double
 leeloo =
   fmap (* 0.5) $
-  focus (l 0) (l 6) $
+  -- focus (l 16) (l 16) $
   silence 0.03 |> chords +++
   melody +++
   drums +++
@@ -356,16 +356,86 @@ cymbal =
         []
 
 bass =
-  fmap (* 0.1) $
-  speedup frequency rect
+  fmap (* 0.2) $
+  speedup frequency wave
   where
     frequency :: Signal Double
     frequency =
-      raster (l 1 / 2) $
-        3 ~> take (constant f) :
-        1 ~> ramp f bflat :
-        3 ~> take (constant bflat) :
-        0.8 ~> ramp bflat c' :
-        0.2 ~> ramp c' f :
-        4 ~> take (constant f) :
-        []
+      raster (l 1 / 4) $
+        a1 ++
+        a2 ++
+        b1 ++
+        a2
+
+    a1 =
+      6.25 ~> co f :
+      1.75 ~> ramp f bflat :
+      7 ~> co bflat :
+      0.25 ~> ramp bflat c' :
+      0.5 ~> co c' :
+      0.25 ~> ramp c' f :
+      6 ~> co f :
+      2 ~> ramp f c :
+      6 ~> co c :
+      2 ~> ramp c f :
+      []
+
+    a2 =
+      4 ~> co f :
+      2 ~> ramp f c' :
+      1 ~> co c' :
+      1 ~> ramp c' bflat :
+      3 ~> co bflat :
+      1 ~> ramp bflat c :
+      4 ~> ramp c f :
+
+      2 ~> co f :
+      6 ~> ramp f c :
+      4 ~> co c :
+      4 ~> ramp c bflat :
+      []
+
+    b1 =
+      0 ~> co bflat :
+      4 ~> ramp bflat b :
+      0 ~> co b :
+      4 ~> ramp b c' :
+      7 ~> co c' :
+      1 ~> ramp c' bflat :
+
+      6 ~> co bflat :
+      2 ~> ramp bflat a :
+      2 ~> co a :
+      2 ~> ramp a d' :
+      3 ~> co d' :
+      1 ~> ramp d' bflat :
+
+      6 ~> co bflat :
+      2 ~> ramp bflat a :
+      2 ~> co a :
+      2 ~> ramp a d :
+      3 ~> co d :
+      1 ~> ramp d g :
+      2 ~> co g :
+      2 ~> ramp g c' :
+      2 ~> co c' :
+      2 ~> ramp c' f :
+      1 ~> co f :
+      3 ~> ramp f c :
+      2 ~> co c :
+      2 ~> ramp c f :
+      []
+
+    co = take . constant
+
+    wave =
+      memoizeWave $
+      fmap (compress 0.99) $
+      harmonics [1, 0.3, 0.3, 0.3, 0.3]
+
+memoizeWave :: Signal Double -> Signal Double
+memoizeWave signal =
+  cycle $
+  mem $
+  flip take 1 $
+  signal
