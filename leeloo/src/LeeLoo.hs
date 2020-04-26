@@ -17,11 +17,12 @@ l n = n * 3
 leeloo :: Signal Double
 leeloo =
   fmap (* 0.5) $
-  focus (l 0) (l 8) $
+  focus (l 0) (l 6) $
   silence 0.03 |> chords +++
   melody +++
   drums +++
   take (l 40) cymbals +++
+  bass +++
   empty
 
 melody =
@@ -352,4 +353,19 @@ cymbal =
         (0.2, 17500) :
         (0.8, 5000) :
         (0.6, 10000) :
+        []
+
+bass =
+  fmap (* 0.1) $
+  speedup frequency rect
+  where
+    frequency :: Signal Double
+    frequency =
+      raster (l 1 / 2) $
+        (3 ~> \ length -> take length (constant f)) :
+        (1 ~> ramp f bflat) :
+        (3 ~> \ length -> take length (constant bflat)) :
+        (0.8 ~> ramp bflat c') :
+        (0.2 ~> ramp c' f) :
+        (4 ~> \ length -> take length (constant f)) :
         []
