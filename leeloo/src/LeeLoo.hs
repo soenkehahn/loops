@@ -18,7 +18,7 @@ l n = n * 3
 leeloo :: Signal Double
 leeloo =
   fmap (* 0.5) $
-  -- focus (l 16) (l 16) $
+  focus (l 0) (l 8) $
   silence 0.03 |> chords +++
   melody +++
   drums +++
