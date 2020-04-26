@@ -5,6 +5,9 @@ import Signal.Core
 import Signal
 import Test.Utils
 import Prelude ()
+import qualified Prelude
+import System.IO
+import System.IO.Silently
 
 spec :: Spec
 spec = do
@@ -24,10 +27,10 @@ spec = do
       toList 0.3 (take (constant 23) 0.9) `shouldBe` [23, 23, 23 :: Double]
       toList 0.2 (take (constant 23) 0.6) `shouldBe` [23, 23, 23 :: Double]
 
-  describe "sampleTimes" $ do
+  describe "getSampleTimes" $ do
     it "doesn't produce too many deltas on floating point rounding errors" $ do
       let end = 1.00000000000001
-      sampleTimes 0.5 (Finite end) `shouldBeCloseTo` [0.0, 0.5]
+      getSampleTimes 0.5 (Finite end) `shouldBeCloseTo` [0.0, 0.5]
 
   describe "simpleSignal" $ do
     it "allows to turn a simple function over time into a signal" $ do
@@ -37,3 +40,12 @@ spec = do
     it "returns an infinite signal" $ do
       let signal = simpleSignal $ \ time -> time * 7
       end signal `shouldBeCloseTo` Infinite
+
+  describe "printSamples" $ around_ (hSilence [stderr]) $ do
+    it "prints samples in 44100 for the whole signal" $ do
+      let signal = ramp 0 1 0.01
+      output <- capture_ $ printSamples signal
+      let outSamples = map read $ lines output
+          expected = Prelude.take 441 ([0, 1 / 44100 / 0.01 ..] :: [Double])
+      length outSamples `shouldBe` length expected
+      outSamples `shouldBeCloseTo` expected

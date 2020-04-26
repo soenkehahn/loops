@@ -5,9 +5,11 @@
 module Signal.Core where
 
 import Signal.Epsilon
+import Control.Monad
 import System.IO
 import Data.ByteString.Conversion
 import Control.Monad.ST
+import Control.Monad.ST.Unsafe
 import qualified Data.ByteString.Char8 as BS
 
 newtype Time = Time {
@@ -76,8 +78,8 @@ getSample signal time = runST $ do
   runSignal <- initialize signal
   runSignal time
 
-sampleTimes :: Time -> Length -> [Time]
-sampleTimes delta end = case end of
+getSampleTimes :: Time -> Length -> [Time]
+getSampleTimes delta end = case end of
   Finite end -> takeWhile (`lt` end) [0, delta ..]
   Infinite -> [0, delta ..]
 
@@ -87,7 +89,7 @@ runOnDeltas signal sampleTimes = runST $ do
     mapM runSignal sampleTimes
 
 toList :: Time -> Signal a -> [a]
-toList delta signal = runOnDeltas signal $ sampleTimes delta (end signal)
+toList delta signal = runOnDeltas signal $ getSampleTimes delta (end signal)
 
 foreach :: Signal a -> [Time] -> (a -> IO ()) -> IO ()
 foreach signal sampleTimes action = mapM_ action $ runOnDeltas signal sampleTimes
@@ -97,9 +99,13 @@ printSamples signal = do
   case end signal of
     Infinite -> error "infinite signal"
     Finite end -> do
-      hPutStrLn stderr ("length: " ++ show end)
-      foreach signal (sampleTimes (1 / 44100) (Finite end)) $ \ sample -> do
-        BS.putStrLn $ toByteString' sample
+      hPutStrLn stderr ("end: " ++ show end)
+      let sampleTimes = getSampleTimes (1 / 44100) (Finite end)
+      unsafeSTToIO $ do
+        runSignal <- initialize signal
+        forM_ sampleTimes $ \ time -> do
+          sample <- runSignal time
+          unsafeIOToST $ BS.putStrLn $ toByteString' sample
 
 simpleSignal :: (Time -> a) -> Signal a
 simpleSignal function = Signal Infinite $ do
