@@ -430,8 +430,7 @@ bass =
 
     wave =
       memoizeWave $
-      fmap (compress 0.99) $
-      harmonics [1, 0.3, 0.3, 0.3, 0.3]
+      harmonics (1 : replicate 5 0.3)
 
 memoizeWave :: Signal Double -> Signal Double
 memoizeWave signal =
