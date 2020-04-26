@@ -13,7 +13,7 @@ harmonics :: [Double] -> Signal Double
 harmonics weights =
   cycle $
   memoize 44100 $
-  take 1 $
+  flip take 1 $
   unmemoizedHarmonics weights
 
 unmemoizedHarmonics :: [Double] -> Signal Double

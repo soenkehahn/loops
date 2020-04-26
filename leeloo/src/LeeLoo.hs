@@ -21,7 +21,7 @@ leeloo =
   silence 0.03 |> chords +++
   melody +++
   drums +++
-  take (l 40) cymbals +++
+  take cymbals (l 40) +++
   bass +++
   empty
 
@@ -142,7 +142,7 @@ melody =
 
     sn frequency =
       ns $ \ len ->
-        take (len * 1.5) $
+        flip take (len * 1.5) $
         ramp (pitch (-0.7) frequency) frequency 0.3 |> constant frequency
 
     ns :: (Time -> Signal Double) -> Time -> Signal Double
@@ -210,7 +210,7 @@ phaser = onFinite inner
     onFinite onInfinite signal = case signalLength signal of
       Infinite -> onInfinite signal
       Finite end ->
-        take end (onInfinite (signal |> constant 0))
+        take (onInfinite (signal |> constant 0)) end
 
     phaseSignal =
       fmap (project (-1, 1) (1 - deviation, 1 + deviation)) $
@@ -330,7 +330,7 @@ cymbals =
 
 cymbal =
   mem $
-  take (l 1 / 6) $
+  flip take (l 1 / 6) $
   env /\ sound
   where
     env :: Signal Double
@@ -362,10 +362,10 @@ bass =
     frequency :: Signal Double
     frequency =
       raster (l 1 / 2) $
-        (3 ~> \ length -> take length (constant f)) :
-        (1 ~> ramp f bflat) :
-        (3 ~> \ length -> take length (constant bflat)) :
-        (0.8 ~> ramp bflat c') :
-        (0.2 ~> ramp c' f) :
-        (4 ~> \ length -> take length (constant f)) :
+        3 ~> take (constant f) :
+        1 ~> ramp f bflat :
+        3 ~> take (constant bflat) :
+        0.8 ~> ramp bflat c' :
+        0.2 ~> ramp c' f :
+        4 ~> take (constant f) :
         []

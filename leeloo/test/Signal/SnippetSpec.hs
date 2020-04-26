@@ -26,14 +26,14 @@ spec = do
 
     it "allows to add snippets together" $ do
       let snippet =
-            1 |-> take 1 (constant 23) +++
-            2 |-> take 1 (constant 42)
+            1 |-> take (constant 23) 1 +++
+            2 |-> take (constant 42) 1
       test 1 3 snippet [0, 23, 42 :: Double]
 
     it "allows overlapping snippets" $ do
       let snippet =
-            1 |-> take 2 (constant 23) +++
-            2 |-> take 2 (constant 42)
+            1 |-> take (constant 23) 2 +++
+            2 |-> take (constant 42) 2
       test 1 5 snippet [0, 23, 65, 42 :: Double]
 
     it "has good fixity in conjunction with |> and /\\" $ do
@@ -47,7 +47,7 @@ spec = do
   describe "dividing system" $ do
     let n :: Integer -> Time -> Signal Integer
         n value length =
-            take length $ constant value
+            take (constant value) length
 
     describe "divide" $ do
       it "allows to divide into two halfs evenly" $ do
@@ -63,7 +63,7 @@ spec = do
         test 1 20 signal [1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 4, 4, 4, 4]
 
       it "fills with silence if parts are too short" $ do
-        let signal = divide [4 ~> \ _time -> take 1 (constant 1), 1 ~> n 2] 5
+        let signal = divide [4 ~> \ _time -> take (constant 1) 1, 1 ~> n 2] 5
         test 1 10 signal [1, 0, 0, 0, 2]
 
       it "handles empty input lists" $ do
@@ -71,7 +71,7 @@ spec = do
         test 1 10 signal [0, 0, 0, 0, 0 :: Double]
 
       it "makes parts that are to long overlap into the next part" $ do
-        let longer value time = take (2 * time) (constant value)
+        let longer value time = take (constant value) (2 * time)
             signal = divide [1 ~> longer 1, 4 ~> n 2] 5
         test 1 10 signal [1, 3, 2, 2, 2]
 

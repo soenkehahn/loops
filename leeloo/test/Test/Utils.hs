@@ -8,7 +8,7 @@ import Signal.Epsilon
 
 test :: (HasCallStack, EpsilonEq a, Show a) => Time -> Time -> Signal a -> [a] -> IO ()
 test delta length signal expected =
-  toList delta (take length signal) `shouldBeCloseTo` expected
+  toList delta (take signal length) `shouldBeCloseTo` expected
 
 shouldBeCloseTo :: (HasCallStack, EpsilonEq a, Show a) => a -> a -> IO ()
 shouldBeCloseTo got expected =

@@ -122,8 +122,8 @@ printSamples signal = do
 constant :: a -> Signal a
 constant a = Signal Infinite $ return $ \ _time -> return a
 
-take :: Time -> Signal a -> Signal a
-take length (Signal mEnd signal) = Signal end' signal
+take :: Signal a -> Time -> Signal a
+take (Signal mEnd signal) length = Signal end' signal
   where
     end' = Finite $ case mEnd of
       Infinite -> length
@@ -137,7 +137,7 @@ skip length signal =
       runSignal (time + length)
 
 focus :: Time -> Time -> Signal a -> Signal a
-focus start length signal = take length $ skip start signal
+focus start length signal = take (skip start signal) length
 
 fromList :: Time -> [a] -> Signal a
 fromList delta (Vec.fromList -> vec) =
@@ -285,10 +285,10 @@ mix = foldl' (+++) empty
 a /\ b = (*) <$> a <*> b
 
 silence :: Num a => Time -> Signal a
-silence length = take length (constant 0)
+silence length = take (constant 0) length
 
 fill :: Num a => Time -> Signal a -> Signal a
-fill length signal = take length (signal |> constant 0)
+fill length signal = take (signal |> constant 0) length
 
 saw :: Signal Double
 saw = fmap (project (0, tau) (-1, 1)) phase
@@ -327,5 +327,5 @@ adsr length config@(Adsr attack decay sustain release) =
     envelope =
       ramp 0 1 attack |>
       ramp 1 sustain decay |>
-      take (length - attack - decay) (constant sustain) |>
+      take (constant sustain) (length - attack - decay) |>
       ramp sustain 0 release
