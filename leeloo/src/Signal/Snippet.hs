@@ -14,6 +14,7 @@ module Signal.Snippet (
   _signalVectorConfiguration,
 ) where
 
+import Signal.Core
 import Signal
 import Signal.Epsilon
 import Control.Monad.ST

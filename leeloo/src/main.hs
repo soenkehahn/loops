@@ -1,5 +1,5 @@
 
-import Signal
+import Signal.Core
 import LeeLoo
 
 main :: IO ()

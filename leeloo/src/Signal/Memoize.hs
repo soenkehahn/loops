@@ -4,8 +4,9 @@ module Signal.Memoize where
 
 import Control.Monad.ST
 import Data.Vector.Storable (Vector, generateM, (!), Storable)
-import Signal
+import Signal.Core
 import Signal.Epsilon
+import Signal
 import Prelude ()
 
 memoize :: forall a . Storable a => Int -> Signal a -> Signal a

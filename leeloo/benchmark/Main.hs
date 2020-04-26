@@ -1,6 +1,7 @@
 import Criterion.Main
 import Prelude ()
 import Signal
+import Signal.Core
 import Signal.Utils
 
 main :: IO ()

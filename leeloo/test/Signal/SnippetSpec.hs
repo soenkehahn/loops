@@ -9,6 +9,7 @@ import qualified Prelude
 import Signal.Epsilon
 import Test.QuickCheck
 import Signal
+import Signal.Core
 import Signal.Snippet
 import Test.Hspec
 import Test.Utils

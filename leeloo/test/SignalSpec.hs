@@ -3,32 +3,12 @@ module SignalSpec where
 import LeeLoo ()
 import Prelude ()
 import Signal
-import Signal.Epsilon
+import Signal.Core
 import Test.Hspec hiding (focus)
 import Test.Utils
 
-shouldYield :: (Show a, EpsilonEq a) => Signal a -> [a] -> IO ()
-shouldYield signal expected = do
-  test 0.5 1.5 signal expected
-
 spec :: Spec
 spec = do
-  describe "toList" $ do
-    it "converts signals into vectors" $ do
-      toList 0.5 (take (constant 23) 1) `shouldBe` [23, 23 :: Double]
-
-    it "doesn't overrun the given length" $ do
-      toList 0.3 (take (constant 23) 1) `shouldBe` [23, 23, 23, 23 :: Double]
-
-    it "uses proper floating point inequalities" $ do
-      toList 0.3 (take (constant 23) 0.9) `shouldBe` [23, 23, 23 :: Double]
-      toList 0.2 (take (constant 23) 0.6) `shouldBe` [23, 23, 23 :: Double]
-
-  describe "deltas" $ do
-    it "doesn't produce too many deltas on floating point rounding errors" $ do
-      let end = 1.00000000000001
-      deltas 0.5 (Finite end) `shouldBeCloseTo` [0.0, 0.5]
-
   describe "fromList" $ do
     it "converts a list into a signal" $ do
       fromList 0.5 [1, 2, 3] `shouldYield` [1, 2, 3 :: Integer]
@@ -57,15 +37,6 @@ spec = do
       let signal = zip (constant 23) (constant 42)
       test 0.5 1 signal [(23, 42), (23, 42) :: (Double, Double)]
 
-  describe "simpleSignal" $ do
-    it "allows to turn a simple function over time into a signal" $ do
-      let signal = simpleSignal $ \ time -> time * 7
-      test 0.5 2 signal [0, 3.5, 7, 10.5]
-
-    it "returns an infinite signal" $ do
-      let signal = simpleSignal $ \ time -> time * 7
-      signalLength signal `shouldBeCloseTo` Infinite
-
   describe "phase" $ do
     it "ramps up to TAU in one second" $ do
       phase `shouldYield` [0, tau / 2, 0]
@@ -82,6 +53,12 @@ spec = do
       map (project (0, 100) (-1, 1)) [0, 50, 100]
         `shouldBe` [-1, 0, 1]
 
+  describe "constSpeedup" $ do
+    it "speeds the signal up by a constant" $ do
+      let signal = constSpeedup 2 $ ramp 0 1 1
+      signalLength signal `shouldBeCloseTo` Finite 0.5
+      test 0.1 10 signal [0, 0.2, 0.4, 0.6, 0.8 :: Double]
+
   describe "speedup" $ do
     it "speeds up another signal" $ do
       test 0.25 1 (speedup (constant 2) phase) [0, tau / 2, 0, tau / 2]
@@ -97,17 +74,6 @@ spec = do
 
     it "always starts with 0" $ do
       test 1 1 (integral (constant 42)) [0 :: Double]
-
-  describe "constSpeedup" $ do
-    it "speeds the signal up by a constant" $ do
-      let signal = constSpeedup 2 $ ramp 0 1 1
-      signalLength signal `shouldBeCloseTo` Finite 0.5
-      test 0.1 10 signal [0, 0.2, 0.4, 0.6, 0.8 :: Double]
-
-  describe "applicative interface" $ do
-    it "<*> and <$> work" $ do
-      ((+) <$> constant 3 <*> constant 4)
-        `shouldYield` [7, 7, 7 :: Integer]
 
   it "allows to easily use an lfo" $ do
     let lfo = fmap (project (-1, 1) (300, 400) . sin) phase

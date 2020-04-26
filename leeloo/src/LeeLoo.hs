@@ -4,6 +4,7 @@
 module LeeLoo where
 
 import Signal
+import Signal.Core
 import Signal.Snippet
 import Signal.Utils
 import Signal.Notes

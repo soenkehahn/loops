@@ -1,6 +1,7 @@
 module Signal.Utils where
 
 import Signal
+import Signal.Core
 import Signal.Memoize
 import Data.List (foldl')
 import Prelude (zip)

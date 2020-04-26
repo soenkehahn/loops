@@ -2,6 +2,7 @@ module Signal.MemoizeSpec where
 
 import Test.Hspec
 import Signal
+import Signal.Core
 import Signal.Memoize
 import Test.Utils
 
