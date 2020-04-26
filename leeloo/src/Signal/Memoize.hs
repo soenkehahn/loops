@@ -1,15 +1,18 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Signal.Memoize where
 
 import Control.Monad.ST
-import Data.Vector.Storable (Vector, generateM, (!))
+import Data.Vector.Storable (Vector, generateM, (!), Storable)
 import Signal
 import Signal.Epsilon
+import Prelude ()
 
-memoize :: Int -> Signal Double -> Signal Double
+memoize :: forall a . Storable a => Int -> Signal a -> Signal a
 memoize arrayLength signal = case signalLength signal of
   Finite length | length ==== 0 -> empty
   Finite length ->
-    let array :: Vector Double
+    let array :: Vector a
         array = runST $ do
           runSignal <- initialize signal
           generateM arrayLength $ \ index -> do
@@ -26,3 +29,8 @@ _toIndex length arrayLength time =
 _toTime :: Time -> Int -> Int -> Time
 _toTime length arrayLength index =
   length * fromIntegral index / fromIntegral arrayLength
+
+mem :: Storable a => Signal a -> Signal a
+mem signal = case signalLength signal of
+  Finite length -> memoize (round $ fromTime (length * 44100)) signal
+  Infinite -> error "memoize not implemented for infinite signals"

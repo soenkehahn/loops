@@ -37,7 +37,8 @@ spec = do
       getSample signal 0.5 `shouldBeCloseTo` (1 / 3)
 
     it "works for empty signals" $ do
-      let signal = memoize 3 empty
+      let signal :: Signal Double
+          signal = memoize 3 empty
       signalLength signal `shouldBeCloseTo` Finite 0
 
     it "throws an exception for infinite signals" $ do
