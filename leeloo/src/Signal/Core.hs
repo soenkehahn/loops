@@ -9,9 +9,9 @@ import System.IO
 import Data.ByteString.Conversion
 import Control.Monad.ST
 import Data.Traversable
-import Control.Monad.ST.Unsafe
+import Data.Foldable
 import qualified Data.ByteString.Char8 as BS
-import Data.Vector.Storable (Storable, Vector, generate)
+import Data.Vector.Storable (Storable, Vector, generate, slice)
 import qualified Data.Vector.Storable as Vec
 
 newtype Time = Time {
@@ -108,17 +108,36 @@ toVector delta signal = case end signal of
   Infinite -> error "toVector: infinite signals not supported"
   Finite end -> runOnTimes signal $ getSampleTimes delta end
 
+equalSlices :: Storable a => Int -> Vector a -> [Vector a]
+equalSlices n vector =
+  flip map [0 .. n - 1] $ \ i ->
+    let start = round $ position i
+        end = round $ position (i + 1)
+    in slice
+      start
+      (min (end - start) (Vec.length vector - start))
+      vector
+  where
+    position :: Int -> Double
+    position i = realToFrac (i * Vec.length vector) / realToFrac n
+
 printSamples :: Signal Double -> IO ()
 printSamples signal = case end signal of
   Infinite -> error "printSamples: infinite signals not supported"
   Finite end -> do
     hPutStrLn stderr ("end: " ++ show end)
-    let sampleTimes = getSampleTimes (1 / 44100) end
-    unsafeSTToIO $ do
-      runSignal <- initialize signal
-      Vec.forM_ sampleTimes $ \ time -> do
-        sample <- runSignal time
-        unsafeIOToST $ BS.putStrLn $ toByteString' sample
+    let sampleTimesChunks =
+          equalSlices 4 $
+          getSampleTimes (1 / 44100) end
+        chunks = runST $ do
+          runSignal <- initialize signal
+          forM sampleTimesChunks $ \ sampleTimes -> do
+            Vec.forM sampleTimes $ \ time -> do
+              sample <- runSignal time
+              return sample
+    forM_ chunks $ \ chunk -> do
+      Vec.forM_ chunk $ \ sample -> do
+        BS.putStrLn $ toByteString' sample
 
 simpleSignal :: (Time -> a) -> Signal a
 simpleSignal function = Signal Infinite $ do

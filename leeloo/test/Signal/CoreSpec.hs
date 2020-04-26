@@ -1,9 +1,14 @@
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Signal.CoreSpec where
 
 import Test.Hspec
 import Signal.Core
 import Signal
 import Test.Utils
+import Data.List (nub)
+import Test.QuickCheck
 import Prelude ()
 import qualified Prelude
 import System.IO
@@ -50,6 +55,31 @@ spec = do
       let signal = simpleSignal $ \ time -> time * 7
       end signal `shouldBeCloseTo` Infinite
 
+  describe "equalSlices" $ do
+    it "returns slices of equal length" $ do
+      equalSlices 3 (Vec.fromList [1 .. 6 :: Int])
+        `shouldBe` map Vec.fromList [[1, 2], [3, 4], [5, 6]]
+
+    it "returns roughly equally large slices if perfectly equal is impossible" $ do
+      equalSlices 3 (Vec.fromList [1 .. 7 :: Int])
+        `shouldBe` map Vec.fromList [[1, 2], [3, 4, 5], [6, 7]]
+      equalSlices 3 (Vec.fromList [1 .. 8 :: Int])
+        `shouldBe` map Vec.fromList [[1, 2, 3], [4, 5], [6, 7, 8]]
+      equalSlices 3 (Vec.fromList [1 .. 9 :: Int])
+        `shouldBe` map Vec.fromList [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+
+    it "always returns a list of slices that can be concatenated to get back the input vector" $ do
+      property $ \ n (Vec.fromList -> (vector :: Vec.Vector Int)) ->
+        (n > 0) ==>
+        Vec.concat (equalSlices n vector) `shouldBe` vector
+
+    it "always returs slices of roughly equal length" $ do
+      property $ \ n (Vec.fromList -> (vector :: Vec.Vector Int)) -> do
+        let slices = equalSlices n vector
+        counterexample (show slices) $
+          length (nub (map Vec.length slices)) `shouldSatisfy` (<= 2)
+
+
   describe "printSamples" $ around_ (hSilence [stderr]) $ do
     it "prints samples in 44100 for the whole signal" $ do
       let signal = ramp 0 1 0.01
@@ -58,3 +88,12 @@ spec = do
           expected = Prelude.take 441 ([0, 1 / 44100 / 0.01 ..] :: [Double])
       length outSamples `shouldBe` length expected
       outSamples `shouldBeCloseTo` expected
+
+    it "works with speedup" $ do
+      let signal = speedup (ramp 1 2 0.01) phase
+      output <- capture_ $ printSamples signal
+      let outSamples = map read $ lines output
+          expected = toList (1 / 44100) signal
+      length outSamples `shouldBe` length expected
+      Prelude.take 150 outSamples `shouldBeCloseTo` Prelude.take 150 expected
+      -- outSamples `shouldBeCloseTo` expected
