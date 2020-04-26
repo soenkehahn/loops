@@ -62,7 +62,7 @@ empty = Signal (Finite 0) $ return $ \ time ->
   error ("empty: shouldn't be called. (" ++ show time ++ ")")
 
 zip :: Signal a -> Signal b -> Signal (a, b)
-zip a b = Signal (minLength a b) $ do
+zip a b = Signal (minLength (signalLength a) (signalLength b)) $ do
   runA <- initialize a
   runB <- initialize b
   return $ \ time -> do
@@ -71,7 +71,7 @@ zip a b = Signal (minLength a b) $ do
     return (a, b)
 
 zipWith :: (a -> b -> c) -> Signal a -> Signal b -> Signal c
-zipWith f a b = Signal (minLength a b) $ do
+zipWith f a b = Signal (minLength (signalLength a) (signalLength b)) $ do
   runA <- initialize a
   runB <- initialize b
   return $ \ time -> do

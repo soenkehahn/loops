@@ -44,8 +44,8 @@ mapLength f length = case length of
   Finite time -> Finite (f time)
   Infinite -> Infinite
 
-minLength :: Signal a -> Signal b -> Length
-minLength a b = case (signalLength a, signalLength b) of
+minLength :: Length -> Length -> Length
+minLength a b = case (a, b) of
   (Finite a, Finite b) -> Finite $ minTime a b
   (Finite a, Infinite) -> Finite a
   (Infinite, Finite b) -> Finite b
@@ -65,7 +65,7 @@ data Signal a = Signal {
 instance Applicative Signal where
   pure a = Signal Infinite $ return $ \ _time -> return a
   fSignal <*> xSignal =
-    Signal (minLength fSignal xSignal) $ do
+    Signal (minLength (signalLength fSignal) (signalLength xSignal)) $ do
       runF <- initialize fSignal
       runX <- initialize xSignal
       return $ \ time -> do
