@@ -323,7 +323,7 @@ cymbals =
   raster (l 1 / 12) $ concat $ replicate (40 * 4) $
   [
     1.02 .> empty,
-    0.97 .> fmap (* 0.4) cymbal,
+    0.97 .> fmap (* 0.3) cymbal,
     1.01 .> cymbal
   ]
 
@@ -334,12 +334,12 @@ cymbal =
   where
     env :: Signal Double
     env = simpleSignal $
-      \ time -> 500 ** (- fromTime time)
+      \ time -> 200 ** (- fromTime time)
 
     sound =
       fmap (* 0.06) $
       mix $
-        fmap (* 0.4) (random (-1, 1)) :
+        fmap (* 0.2) (random (-1, 1)) :
         sines :
         []
 
