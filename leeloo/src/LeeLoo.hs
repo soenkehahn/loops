@@ -469,4 +469,6 @@ bass =
 
     co = take . constant
 
-    wave = harmonics [1, 0.3]
+    wave =
+      fmap (compress 0.99) $
+      harmonics [1, 0.3]
