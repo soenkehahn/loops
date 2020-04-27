@@ -18,7 +18,7 @@ l n = n * 3
 leeloo :: Signal Double
 leeloo =
   fmap (* 0.5) $
-  focus (l 0) (l 8) $
+  -- focus (l 8) (l 4) $
   silence 0.03 |> chords +++
   melody +++
   drums +++
@@ -358,17 +358,22 @@ cymbal =
 
 bass =
   fmap (* 0.2) $
-  speedup frequency wave
+  speedup frequency wave /\
+  env
   where
+    env =
+      silence (l 6) |>
+      ramp 0 1 (l 4) |>
+      take (constant 1) (l 2) |>
+      constant 1
+
     frequency :: Signal Double
     frequency =
-      raster (l 1 / 4) $
-        a1 ++
-        a2 ++
-        b1 ++
-        a2
+      raster (l 1 / 4) (a1 f ++ a1 bflat) |>
+      raster (l 1 / 12) b1 |>
+      raster (l 1 / 4) (a1 f)
 
-    a1 =
+    a1 next =
       6.25 ~> co f :
       1.75 ~> ramp f bflat :
       7 ~> co bflat :
@@ -378,64 +383,43 @@ bass =
       6 ~> co f :
       2 ~> ramp f c :
       6 ~> co c :
-      2 ~> ramp c f :
-      []
-
-    a2 =
-      4 ~> co f :
-      2 ~> ramp f c' :
-      1 ~> co c' :
-      1 ~> ramp c' bflat :
-      3 ~> co bflat :
-      1 ~> ramp bflat c :
-      4 ~> ramp c f :
-
-      2 ~> co f :
-      6 ~> ramp f c :
-      4 ~> co c :
-      4 ~> ramp c bflat :
+      2 ~> ramp c next :
       []
 
     b1 =
-      0 ~> co bflat :
-      4 ~> ramp bflat b :
-      0 ~> co b :
-      4 ~> ramp b c' :
-      7 ~> co c' :
-      1 ~> ramp c' bflat :
-
-      6 ~> co bflat :
-      2 ~> ramp bflat a :
-      2 ~> co a :
-      2 ~> ramp a d' :
-      3 ~> co d' :
-      1 ~> ramp d' bflat :
-
-      6 ~> co bflat :
-      2 ~> ramp bflat a :
-      2 ~> co a :
-      2 ~> ramp a d :
-      3 ~> co d :
-      1 ~> ramp d g :
-      2 ~> co g :
-      2 ~> ramp g c' :
-      2 ~> co c' :
-      2 ~> ramp c' f :
-      1 ~> co f :
+      bar bflat f' c'' bflat' f' ++
+      bar b f' b' aflat' f' ++
+      bar c' f' c'' a' f' ++
+      bar c' f' c'' a' eflat' ++
+      bar bflat f' c'' bflat' f' ++
+      bar bflat f' c'' bflat' f' ++
+      bar a e' b' a' e' ++
+      bar d' a' e'' d'' a' ++
+      bar bflat f' c'' bflat' f' ++
+      bar bflat f' c'' bflat' f' ++
+      bar a e' b' c'' a' ++
+      bar d' a' e'' d'' a' ++
+      bar g d' a' g' d' ++
+      bar c' g' d'' c'' g' ++
+      9 ~> co f :
       3 ~> ramp f c :
-      2 ~> co c :
-      2 ~> ramp c f :
+      6 ~> co c :
+      6 ~> ramp c f :
+      []
+
+    bar a b c d e =
+      1 ~> co a :
+      1 .> empty :
+      1 ~> co b :
+      2 .> empty :
+      1 ~> co c :
+      1 .> empty :
+      1 ~> co d :
+      1 .> empty :
+      1 ~> co e :
+      2 .> empty :
       []
 
     co = take . constant
 
-    wave =
-      memoizeWave $
-      harmonics (1 : replicate 5 0.3)
-
-memoizeWave :: Signal Double -> Signal Double
-memoizeWave signal =
-  cycle $
-  mem $
-  flip take 1 $
-  signal
+    wave = harmonics [1, 0.3]
