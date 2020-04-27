@@ -18,13 +18,42 @@ l n = n * 3
 leeloo :: Signal Double
 leeloo =
   fmap (* 0.5) $
-  -- focus (l 8) (l 4) $
+  -- focus (l 40) (l 100) $
+  raster (l 1) $
+    40 .> song :
+    2 .> fadeout :
+    2 .> empty :
+    []
+
+song =
   silence 0.03 |> chords +++
   melody +++
-  drums +++
-  take cymbals (l 40) +++
-  bass +++
+  take drums (l 32 - l 1 / 4) +++
+  cymbals /\
+    (
+      take (constant 1) (l 32) |>
+      ramp 1 0 (l 4)
+    ) +++
+  bass /\
+    (
+      silence (l 6) |>
+      ramp 0 1 (l 4) |>
+      take (constant 1) (l 2) |>
+      constant 1
+    ) +++
   empty
+
+fadeout =
+  speedup s (chords +++ bass |> constant 0) /\ env
+  where
+    len = (l 2)
+    s =
+      flip take len
+        (simpleSignal $ \ time -> ((1 - fromTime (time / len)) ** (1 / 15))) |>
+        constant 0
+    env =
+      take (constant 1) len |>
+      ramp 1 0 1
 
 melody =
   fmap (* 0.1) $
@@ -163,46 +192,59 @@ chords =
     8 .> partA :
     8 .> partA :
     16 .> partB :
-    8 .> partA :
+    8 .> outro :
     []
 
-partA =
-  raster (l 1) $ fmap (1 .>) $
-    chord [f'', c''', e''', a'''] :
-    chord [f'', c''', e''', a'''] :
-    chord [bflat', d''', f''', a'''] :
-    chord [bflat', d''', f''', a'''] :
-    chord [f'', c''', e''', a'''] :
-    chord [f'', c''', e''', a'''] :
-    chord [c'', bflat'', e''', g'''] :
-    chord [c'', bflat'', e''', g'''] :
-    []
+  where
+    outro =
+      raster (l 1) $ fmap (1 .>) $
+        chord [f'', c''', e''', a'''] :
+        chord [f'', c''', e''', a'''] :
+        chord [bflat', d''', f''', a'''] :
+        chord [bflat', d''', f''', a'''] :
+        chord [f'', c''', e''', a'''] :
+        chord [f'', c''', e''', a'''] :
+        chord [bflat', d''', f''', a'''] :
+        chord [bflat', d''', f''', a'''] :
+        []
 
-partB =
-  raster (l 1) $ fmap (1 .>) $
-    chord [bflat', a'', d''', f'''] :
-    chord [b', aflat'', d''', f'''] :
-    chord [c'', a'', e''', f'''] :
-    chord [c'', a'', eflat''', f'''] :
-    chord [bflat', a'', d''', f'''] :
-    chord [bflat', aflat'', dflat''', f'''] :
-    chord [a', g'', c''', e'''] :
-    chord [d'', fsharp'', c''', e'''] :
-    chord [bflat', a'', d''', f'''] :
-    chord [bflat', aflat'', dflat''', f'''] :
-    chord [a', g'', c''', e'''] :
-    chord [d'', fsharp'', c''', e'''] :
-    chord [g', f'', bflat'', d'''] :
-    chord [c'', e'', bflat'', d'''] :
-    chord [f'', c''', e''', a'''] :
-    chord [c'', bflat'', e''', g'''] :
-    []
+    partA =
+      raster (l 1) $ fmap (1 .>) $
+        chord [f'', c''', e''', a'''] :
+        chord [f'', c''', e''', a'''] :
+        chord [bflat', d''', f''', a'''] :
+        chord [bflat', d''', f''', a'''] :
+        chord [f'', c''', e''', a'''] :
+        chord [f'', c''', e''', a'''] :
+        chord [c'', bflat'', e''', g'''] :
+        chord [c'', bflat'', e''', g'''] :
+        []
 
-chord frequencies =
-  fanOut frequencies $ \ frequency ->
-    adsr (l 1 * 1.1 - 1) (Adsr 0.01 0.2 0.7 1) /\ note frequency
+    partB =
+      raster (l 1) $ fmap (1 .>) $
+        chord [bflat', a'', d''', f'''] :
+        chord [b', aflat'', d''', f'''] :
+        chord [c'', a'', e''', f'''] :
+        chord [c'', a'', eflat''', f'''] :
+        chord [bflat', a'', d''', f'''] :
+        chord [bflat', aflat'', dflat''', f'''] :
+        chord [a', g'', c''', e'''] :
+        chord [d'', fsharp'', c''', e'''] :
+        chord [bflat', a'', d''', f'''] :
+        chord [bflat', aflat'', dflat''', f'''] :
+        chord [a', g'', c''', e'''] :
+        chord [d'', fsharp'', c''', e'''] :
+        chord [g', f'', bflat'', d'''] :
+        chord [c'', e'', bflat'', d'''] :
+        chord [f'', c''', e''', a'''] :
+        chord [c'', bflat'', e''', g'''] :
+        []
 
-note frequency = constSpeedup frequency $ harmonics [1, 0.5, 0.9, 0.3, 0.6]
+    chord frequencies =
+      fanOut frequencies $ \ frequency ->
+        adsr (l 1 * 1.1 - 1) (Adsr 0.01 0.2 0.7 1) /\ note frequency
+
+    note frequency = constSpeedup frequency $ harmonics [1, 0.5, 0.9, 0.3, 0.6]
 
 phaser :: Signal Double -> Signal Double
 phaser = onFinite inner
@@ -358,20 +400,14 @@ cymbal =
 
 bass =
   fmap (* 0.2) $
-  speedup frequency wave /\
-  env
+  speedup frequency wave
   where
-    env =
-      silence (l 6) |>
-      ramp 0 1 (l 4) |>
-      take (constant 1) (l 2) |>
-      constant 1
 
     frequency :: Signal Double
     frequency =
       raster (l 1 / 4) (a1 f ++ a1 bflat) |>
       raster (l 1 / 12) b1 |>
-      raster (l 1 / 4) (a1 f)
+      raster (l 1 / 4) outro
 
     a1 next =
       6.25 ~> co f :
@@ -418,6 +454,17 @@ bass =
       1 .> empty :
       1 ~> co e :
       2 .> empty :
+      []
+
+    outro =
+      6 ~> co f :
+      2 ~> ramp f bflat :
+      6 ~> co bflat :
+      2 ~> ramp bflat f :
+      6 ~> co f :
+      2 ~> ramp f bflat :
+      6 ~> co bflat :
+      2 ~> ramp bflat f :
       []
 
     co = take . constant
