@@ -35,3 +35,10 @@ mem :: Storable a => Signal a -> Signal a
 mem signal = case end signal of
   Finite length -> memoize (round $ fromTime (length * 44100)) signal
   Infinite -> error "memoize not implemented for infinite signals"
+
+memoizeWave :: Signal Double -> Signal Double
+memoizeWave signal =
+  cycle $
+  memoize 44100 $
+  flip take 1 $
+  signal

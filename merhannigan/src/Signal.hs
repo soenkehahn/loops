@@ -181,6 +181,9 @@ a +++ b =
 mix :: Num a => [Signal a] -> Signal a
 mix = foldl' (+++) empty
 
+mixWithVolumes :: Num a => [(a, Signal a)] -> Signal a
+mixWithVolumes = foldl' (\ acc (volume, signal) -> acc +++ fmap (* volume) signal) empty
+
 (/\) :: Num a => Signal a -> Signal a -> Signal a
 a /\ b = (*) <$> a <*> b
 

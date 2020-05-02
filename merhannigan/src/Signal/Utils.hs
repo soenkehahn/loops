@@ -12,9 +12,7 @@ fanOut list signal =
 
 harmonics :: [Double] -> Signal Double
 harmonics weights =
-  cycle $
-  memoize 44100 $
-  flip take 1 $
+  memoizeWave $
   unmemoizedHarmonics weights
 
 unmemoizedHarmonics :: [Double] -> Signal Double

@@ -23,3 +23,6 @@ _weightedToUnweighted list = case list of
   (weight, element) : rest ->
     replicate weight element ++ _weightedToUnweighted rest
   [] -> []
+
+range :: Random a => (a, a) -> State StdGen a
+range bounds = randomInState $ randomR bounds

@@ -123,6 +123,14 @@ spec = do
       let signal = mix [constant 23, take (constant 42) 1]
       test 1 3 signal [65, 23, 23 :: Double]
 
+  describe "mixWithVolumes" $ do
+    it "mixes signals according to their given volume" $ do
+      let signal = mixWithVolumes $
+            (2, constant (23 :: Double)) :
+            (3, constant 42) :
+            []
+      getSample signal 0 `shouldBe` 2 * 23 + 3 * 42
+
   describe "/\\" $ do
     it "multiplies two signals" $ do
       constant 3 /\ constant 4 `shouldYield` [12, 12, 12 :: Double]
