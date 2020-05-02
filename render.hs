@@ -16,4 +16,6 @@ main = do
   forM_ (zip [1 ..] songs) $ \ (n, directory) -> do
     let outputFile = "album" </> (show n ++ "_" ++ directory ++ ".wav")
     putStrLn $ "rendering " ++ outputFile ++ "..."
-    unit $ cmd (Cwd directory) "looper ./run.sh --render" (".." </> outputFile)
+    unit $ cmd (Cwd directory)
+      "looper ./run.sh --normalize --render"
+      (".." </> outputFile)
