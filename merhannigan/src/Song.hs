@@ -88,7 +88,7 @@ mkBeat = do
 mkSnares :: State StdGen (Signal Double)
 mkSnares = do
   snare <- mkSnare
-  withRandomPatterns (l * 2) 8 (return snare) $
+  withRandomPatterns (l * 2) 8 snare $
     (1, [0, 1]) :
     (1, [0, 0, 0, 0.5, 0, 0, 1, 0, 0, 0, 0, 1]) :
     (1, [0, 0, 0.5, 0, 0, 0.5, 0, 0, 0.5, 0, 0, 0.5]) :
@@ -108,15 +108,18 @@ mkSnare = do
     return $
       constSpeedup frequency $
       harmonics frequencies
-  return $
-    fmap (* 0.1) $
-    adsr 1 (Adsr 0.01 0.08 0 0) /\
-    memoizeWave (
-      mixWithVolumes $
-        (0.05, mix highSines) :
-        (0.5, lowSines) :
-        (0.2, noise (-1, 1)) :
-        [])
+  return $ do
+    volume <- range (0.3, 1.3)
+    return $
+      fmap (* 0.1) $
+      adsr 1 (Adsr 0.01 0.08 0 0) /\
+      memoizeWave (
+        fmap (* volume) $
+        mixWithVolumes $
+          (0.05, mix highSines) :
+          (0.5, lowSines) :
+          (0.2, noise (-1, 1)) :
+          [])
 
 withRandomPatterns :: Time -> Int -> State StdGen (Signal Double) -> [(Int, [Rational])]
   -> State StdGen (Signal Double)
