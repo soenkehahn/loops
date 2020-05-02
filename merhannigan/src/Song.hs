@@ -6,6 +6,7 @@ module Song where
 
 import Signal
 import Signal.Core
+import Utils
 import Signal.Snippet
 import Signal.Utils
 import Prelude ()
@@ -41,7 +42,7 @@ bar = do
     (4, 4) :
     (1, 6) :
     []
-  pattern :: [Bool] <- forM [1 .. numberOfBeats] $ const $ m $ random
+  pattern :: [Bool] <- forM [1 .. numberOfBeats] $ const $ randomInState $ random
   beats <- forM pattern $ \ inPattern ->
     if inPattern
       then beat
@@ -50,32 +51,9 @@ bar = do
 
 
 beat = do
-  factor <- m $ randomR (0.7, 1.3)
+  factor <- randomInState $ randomR (0.7, 1.3)
   return $
     fmap (* 0.02) $
     fmap (* factor) $
     adsr 1 (Adsr 0.01 0.4 0 0) /\
     noise (-1, 1)
-
-m :: (StdGen -> (a, StdGen)) -> State StdGen a
-m f = do
-  gen <- get
-  let (result, nextGen) = f gen
-  put nextGen
-  return result
-
-choose :: [a] -> State StdGen a
-choose list = do
-  index <- m $ randomR (0, length list - 1)
-  return $ list !! index
-
-weighted :: [(Int, a)] -> State StdGen a
-weighted list = do
-  weightedIndex <- m $ randomR (0, sum (map fst list) - 1)
-  return $ inner weightedIndex list
-  where
-    inner weightedIndex list = case list of
-      (weight, a) : rest -> if weightedIndex < weight
-        then a
-        else inner (weightedIndex - weight) rest
-      [] -> error "weighted: shouldn't happen"
