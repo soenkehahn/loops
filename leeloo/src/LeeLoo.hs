@@ -405,11 +405,11 @@ bass =
 
     frequency :: Signal Double
     frequency =
-      raster (l 1 / 4) (a1 f ++ a1 bflat) |>
+      raster (l 1 / 4) (a1 ++ a2) |>
       raster (l 1 / 12) b1 |>
       raster (l 1 / 4) outro
 
-    a1 next =
+    a1 =
       6.25 ~> co f :
       1.75 ~> ramp f bflat :
       7 ~> co bflat :
@@ -419,7 +419,27 @@ bass =
       6 ~> co f :
       2 ~> ramp f c :
       6 ~> co c :
-      2 ~> ramp c next :
+      2 ~> ramp c f :
+      []
+
+    a2 =
+      6.25 ~> co f :
+      1.75 ~> ramp f bflat :
+      7 ~> co bflat :
+      0.25 ~> ramp bflat c' :
+      0.5 ~> co c' :
+      0.25 ~> ramp c' f :
+      6 ~> co f :
+      2 ~> ramp f c :
+      4 ~> co c :
+      1 ~> ramp c bflat :
+      1 ~> co bflat :
+      2 ~> divide [
+        4 ~> co bflat,
+        1 .> empty,
+        0.9 ~> co bflat,
+        0.1 .> empty
+       ] :
       []
 
     b1 =
