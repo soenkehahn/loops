@@ -8,6 +8,7 @@ import System.FilePath
 songs =
   "huhu" :
   "leeloo" :
+  "vommke" :
   []
 
 main = do
