@@ -1,0 +1,42 @@
+name: song
+ghc-options:
+  - -fdefer-typed-holes
+  - -O1
+  - -Wall
+  - -Wno-name-shadowing
+default-extensions:
+  - Strict
+
+dependencies:
+  - base
+  - bytestring
+  - bytestring-conversion
+  - random
+  - vector
+  - transformers
+
+executables:
+  song:
+    main: main.hs
+    source-dirs:
+      - src
+
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs:
+      - test
+      - src
+    dependencies:
+      - hspec
+      - HUnit
+      - QuickCheck
+      - silently
+
+benchmarks:
+  benchmark:
+    main: ../benchmark/Main.hs
+    source-dirs:
+      - src
+    dependencies:
+      - criterion
