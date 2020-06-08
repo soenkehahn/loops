@@ -18,7 +18,7 @@ l n = n * 3
 leeloo :: Signal Double
 leeloo =
   fmap (* 0.5) $
-  -- focus (l 40) (l 100) $
+  -- focus (l 14) (l 4) $
   raster (l 1) $
     40 .> song :
     2 .> fadeout :
@@ -432,14 +432,8 @@ bass =
       6 ~> co f :
       2 ~> ramp f c :
       4 ~> co c :
-      1 ~> ramp c bflat :
-      1 ~> co bflat :
-      2 ~> divide [
-        4 ~> co bflat,
-        1 .> empty,
-        0.9 ~> co bflat,
-        0.1 .> empty
-       ] :
+      2 ~> ramp c bflat :
+      2 ~> co bflat :
       []
 
     b1 =
@@ -463,6 +457,7 @@ bass =
       6 ~> ramp c f :
       []
 
+    bar :: Double -> Double -> Double -> Double -> Double -> [Part Double]
     bar a b c d e =
       1 ~> co a :
       1 .> empty :
