@@ -18,12 +18,22 @@ l n = n * 3
 leeloo :: Signal Double
 leeloo =
   fmap (* 0.5) $
-  -- focus (l 14) (l 4) $
-  raster (l 1) $
-    40 .> song :
-    2 .> fadeout :
-    2 .> empty :
-    []
+  -- focus (l 39) (l 500) $
+  songWithFadeout
+
+songWithFadeout =
+  speedup s (song |> constant 0) /\ env
+  where
+    len = (l 2)
+    s =
+      take (constant 1) (l 40) |>
+      flip take len
+        (simpleSignal $ \ time -> ((1 - fromTime (time / len)) ** (1 / 15))) |>
+        constant 0
+    env =
+      take (constant 1) (l 40) |>
+      take (constant 1) len |>
+      ramp 1 0 1
 
 song =
   silence 0.03 |> chords +++
@@ -42,18 +52,6 @@ song =
       constant 1
     ) +++
   empty
-
-fadeout =
-  speedup s (chords +++ bass |> constant 0) /\ env
-  where
-    len = (l 2)
-    s =
-      flip take len
-        (simpleSignal $ \ time -> ((1 - fromTime (time / len)) ** (1 / 15))) |>
-        constant 0
-    env =
-      take (constant 1) len |>
-      ramp 1 0 1
 
 melody =
   fmap (* 0.1) $
@@ -206,6 +204,8 @@ chords =
         chord [f'', c''', e''', a'''] :
         chord [bflat', d''', f''', a'''] :
         chord [bflat', d''', f''', a'''] :
+        chord [f'', c''', e''', a'''] :
+        chord [f'', c''', e''', a'''] :
         []
 
     partA =
@@ -480,6 +480,7 @@ bass =
       2 ~> ramp f bflat :
       6 ~> co bflat :
       2 ~> ramp bflat f :
+      8 ~> co f :
       []
 
     co = take . constant
