@@ -9,6 +9,7 @@ songs =
   "huhu" :
   "leeloo" :
   "vommke" :
+  "merhannigan" :
   []
 
 main = do
