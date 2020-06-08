@@ -33,18 +33,18 @@ spec = do
       toList 0.3 (take (constant 23) 0.9) `shouldBe` [23, 23, 23 :: Double]
       toList 0.2 (take (constant 23) 0.6) `shouldBe` [23, 23, 23 :: Double]
 
-  describe "getSampleTimes" $ do
+  describe "_getSampleTimes" $ do
     it "returns all the sample times for the given length" $ do
-      getSampleTimes 0.1 1 `shouldBeCloseTo`
+      _getSampleTimes 0.1 1 `shouldBeCloseTo`
         Vec.fromList [0, 0.1 .. 0.9]
 
     it "stays within the given length when the length is not divisible by the delta" $ do
-      getSampleTimes 0.3 0.8 `shouldBeCloseTo`
+      _getSampleTimes 0.3 0.8 `shouldBeCloseTo`
         Vec.fromList [0, 0.3, 0.6]
 
     it "doesn't produce too many deltas on floating point rounding errors" $ do
       let end = 1.00000000000001
-      getSampleTimes 0.5 end `shouldBeCloseTo` Vec.fromList [0.0, 0.5]
+      _getSampleTimes 0.5 end `shouldBeCloseTo` Vec.fromList [0.0, 0.5]
 
   describe "simpleSignal" $ do
     it "allows to turn a simple function over time into a signal" $ do
@@ -55,27 +55,27 @@ spec = do
       let signal = simpleSignal $ \ time -> time * 7
       end signal `shouldBeCloseTo` Infinite
 
-  describe "equalSlices" $ do
+  describe "_equalSlices" $ do
     it "returns slices of equal length" $ do
-      equalSlices 3 (Vec.fromList [1 .. 6 :: Int])
+      _equalSlices 3 (Vec.fromList [1 .. 6 :: Int])
         `shouldBe` map Vec.fromList [[1, 2], [3, 4], [5, 6]]
 
     it "returns roughly equally large slices if perfectly equal is impossible" $ do
-      equalSlices 3 (Vec.fromList [1 .. 7 :: Int])
+      _equalSlices 3 (Vec.fromList [1 .. 7 :: Int])
         `shouldBe` map Vec.fromList [[1, 2], [3, 4, 5], [6, 7]]
-      equalSlices 3 (Vec.fromList [1 .. 8 :: Int])
+      _equalSlices 3 (Vec.fromList [1 .. 8 :: Int])
         `shouldBe` map Vec.fromList [[1, 2, 3], [4, 5], [6, 7, 8]]
-      equalSlices 3 (Vec.fromList [1 .. 9 :: Int])
+      _equalSlices 3 (Vec.fromList [1 .. 9 :: Int])
         `shouldBe` map Vec.fromList [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 
     it "always returns a list of slices that can be concatenated to get back the input vector" $ do
       property $ \ n (Vec.fromList -> (vector :: Vec.Vector Int)) ->
         (n > 0) ==>
-        Vec.concat (equalSlices n vector) `shouldBe` vector
+        Vec.concat (_equalSlices n vector) `shouldBe` vector
 
     it "always returs slices of roughly equal length" $ do
       property $ \ n (Vec.fromList -> (vector :: Vec.Vector Int)) -> do
-        let slices = equalSlices n vector
+        let slices = _equalSlices n vector
         counterexample (show slices) $
           length (nub (map Vec.length slices)) `shouldSatisfy` (<= 2)
 

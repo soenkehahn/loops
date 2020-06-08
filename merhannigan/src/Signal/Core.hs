@@ -2,7 +2,27 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor #-}
 
-module Signal.Core where
+module Signal.Core (
+  Time(..),
+  minTime,
+  maxTime,
+  maximumTime,
+  Length(..),
+  mapLength,
+  minLength,
+  maxLength,
+  Signal(..),
+  simpleSignal,
+  getSample,
+  runOnTimes,
+  Signal.Core.toList,
+  toVector,
+  printSamples,
+
+  -- exported for testing
+  _getSampleTimes,
+  _equalSlices,
+) where
 
 import Signal.Epsilon
 import System.IO
@@ -80,8 +100,8 @@ getSample signal time = runST $ do
   runSignal <- initialize signal
   runSignal time
 
-getSampleTimes :: Time -> Time -> Vector Time
-getSampleTimes delta end = case end of
+_getSampleTimes :: Time -> Time -> Vector Time
+_getSampleTimes delta end = case end of
   end -> generate (epsilonCeiling (end / delta)) $ \ i ->
     fromIntegral i * delta
   where
@@ -100,16 +120,16 @@ toList delta signal = case end signal of
   Infinite -> error "toList: infinite signals not supported"
   Finite end -> runST $ do
     runSignal <- initialize signal
-    forM (Vec.toList (getSampleTimes delta end)) $ \ time ->
+    forM (Vec.toList (_getSampleTimes delta end)) $ \ time ->
       runSignal time
 
 toVector :: Storable a => Time -> Signal a -> Vector a
 toVector delta signal = case end signal of
   Infinite -> error "toVector: infinite signals not supported"
-  Finite end -> runOnTimes signal $ getSampleTimes delta end
+  Finite end -> runOnTimes signal $ _getSampleTimes delta end
 
-equalSlices :: Storable a => Int -> Vector a -> [Vector a]
-equalSlices n vector =
+_equalSlices :: Storable a => Int -> Vector a -> [Vector a]
+_equalSlices n vector =
   flip map [0 .. n - 1] $ \ i ->
     let start = round $ position i
         end = round $ position (i + 1)
@@ -127,8 +147,8 @@ printSamples signal = case end signal of
   Finite end -> do
     hPutStrLn stderr ("end: " ++ show end)
     let sampleTimesChunks =
-          equalSlices 4 $
-          getSampleTimes (1 / 44100) end
+          _equalSlices 4 $
+          _getSampleTimes (1 / 44100) end
         chunks = runST $ do
           runSignal <- initialize signal
           forM sampleTimesChunks $ \ sampleTimes -> do
