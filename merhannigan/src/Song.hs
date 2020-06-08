@@ -5,43 +5,58 @@
 module Song where
 
 import Signal
+import Data.List
+import Data.Ratio
+import Debug.Trace
 import Control.Arrow (first)
 import Signal.Core
 import Signal.Memoize
 import Utils
-import Data.Ratio
 import Signal.Snippet
 import Signal.Utils
 import Prelude ()
 import Control.Monad
 import Control.Monad.Trans.State
 import System.Random
-import System.IO
 
 song :: IO (Signal Double)
 song = do
   gen <- getStdGen
-  let tracks = evalState randomSong gen
-  forM_ tracks $ \ track ->
-    hPutStrLn stderr $ show $ end track
+  let tracks = evalState (randomSong 110) gen
   return $
-    mix tracks
+    -- focus (l * 4) 1000 $
+    -- flip take (l * 8) $
+    tracks
 
-randomSong = do
-  beats <- mkBeats
-  gongs <- mkGongs
+randomSong :: Double -> State StdGen (Signal Double)
+randomSong base = do
+  a <- randomPart base False
+  b <- randomPart (base * 3 / 2) False
+  c <- randomPart base True
+  return $ raster (l * 16) (map (1 .>) [a, b, c])
+
+randomPart :: Double -> Bool -> State StdGen (Signal Double)
+randomPart base end = do
+  ticks <- mkTicks
+  gongs <- mkGongs base end
   snares <- mkSnares
-  return $
-    beats :
-    gongs :
-    snares :
+  melody <- mkMelody (base * 2) end
+  return $ mix $
+    d ticks :
+    d gongs :
+    d snares :
+    melody :
     []
+
+  where
+    d :: Signal Double -> Signal Double
+    d signal = silence (l * 0.01) |> signal
 
 l = 1
 
-mkGongs = do
+mkGongs base end = do
   gong <- mkGong
-  return $ raster (l * 4) (replicate 4 (1 .> gong))
+  return $ raster (l * 4) (replicate (if end then 5 else 4) (1 .> gong))
   where
     mkGong = do
       numberOfHarmonics <- choose [1 .. 20]
@@ -67,22 +82,23 @@ mkGongs = do
         fmap (project (-1, 1) (base, base * deviation)) $
         constSpeedup speed $
         sine
-    base = 110
 
-mkBeats :: State StdGen (Signal Double)
-mkBeats = do
-  withRandomPatterns l 16 mkBeat $
-    (1, [1, 0.5, 0.5, 0.9, 0.5, 0.5]) :
-    (1, [1, 0.5, 0.9, 0.5, 0.9, 0.5]) :
+mkTicks :: State StdGen (Signal Double)
+mkTicks = do
+  withRandomPatterns l 16 mkTick $
+    (1, [1, 0.2, 0.5, 0.9, 0.2, 0.5]) :
+    (1, [1, 0.2, 0.8, 0.2, 0.9, 0.2]) :
     []
 
-mkBeat = do
+mkTick = do
   factor <- randomInState $ randomR (0.6, 1.3)
   return $
-    fmap (* 0.02) $
+    fmap (* 0.04) $
     fmap (* factor) $
-    adsr 1 (Adsr 0.01 0.02 0 0) /\
+    adsr 1 (Adsr ramp ramp 0 0) /\
     noise (-1, 1)
+  where
+    ramp = 0.005
 
 
 mkSnares :: State StdGen (Signal Double)
@@ -143,3 +159,55 @@ withRandomPatterns length replication mkSignal patterns = do
           (numerator weight, True) :
           (denominator weight - numerator weight, False) :
           []
+
+compress :: Double -> Double -> Double
+compress 0 x = x
+compress _ 0 = 0
+compress tweak x | x > 0 = - (((1 - tweak) ** x) - 1) / tweak
+compress tweak x = - compress tweak (- x)
+
+mkMelody :: Double -> Bool -> State StdGen (Signal Double)
+mkMelody base end = do
+  frequencies <- (if end then (++ [base * 2]) else id) <$>
+    mkFrequencies (round $ fromTime (l * 16 / len))
+  return $
+    fmap (* 0.03) $
+    evenly (map (\ frequency _time -> n frequency) frequencies)
+      (len * fromIntegral (length frequencies))
+
+  where
+    len = l / 6
+    n frequency =
+      adsr len (Adsr 0.05 0 1 0.1) /\
+      constSpeedup frequency (harmonics [1, 0.05])
+
+    mkFrequencies :: Int -> State StdGen [Double]
+    mkFrequencies n = do
+      let scale = mkScale base 1
+          weights =
+            10 :
+            3 :
+            10 :
+            3 :
+            10 :
+            6 :
+            3 :
+            10 :
+            []
+      trace (show scale) $
+        replicateM n $ weighted $ Data.List.zip weights scale
+
+mkScale :: Double -> Int -> [Double]
+mkScale base offset =
+  sort $
+  (base * 2 :) $
+  map (limitPitch base) $
+  map (\ position -> base * (3 ** fromIntegral position)) $
+  [-offset .. -offset + 6]
+
+limitPitch base frequency =
+  if frequency > 2 * base
+  then limitPitch base (frequency / 2)
+  else if frequency < 1 * base
+  then limitPitch base (frequency * 2)
+  else frequency

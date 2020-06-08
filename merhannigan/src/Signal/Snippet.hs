@@ -96,7 +96,7 @@ runSignalVector (SignalVector vector tailStart tail) time =
   where
     snippets = if time `lt` tailStart
       then
-        let index = floor (fromTime (time / tailStart) * fromIntegral (length vector))
+        let index = max 0 $ floor (fromTime (time / tailStart) * fromIntegral (length vector))
         in vector ! index
       else tail
 
