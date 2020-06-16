@@ -30,17 +30,17 @@ song = do
 
 randomSong :: Double -> State StdGen (Signal Double)
 randomSong base = do
-  a <- randomPart base False
-  b <- randomPart (base * 3 / 2) False
-  c <- randomPart base True
+  a <- randomPart (base * 2) base False
+  b <- randomPart (base * 2) (base * 3 / 2) False
+  c <- randomPart (base * 2) base True
   return $ raster (l * 16) (map (1 .>) [a, b, c])
 
-randomPart :: Double -> Bool -> State StdGen (Signal Double)
-randomPart base end = do
+randomPart :: Double -> Double -> Bool -> State StdGen (Signal Double)
+randomPart octave base end = do
   ticks <- mkTicks
   gongs <- mkGongs base end
   snares <- mkSnares
-  melody <- mkMelody (base * 2) end
+  melody <- mkMelody octave (base * 2) end
   return $ mix $
     d ticks :
     d gongs :
@@ -166,8 +166,8 @@ compress _ 0 = 0
 compress tweak x | x > 0 = - (((1 - tweak) ** x) - 1) / tweak
 compress tweak x = - compress tweak (- x)
 
-mkMelody :: Double -> Bool -> State StdGen (Signal Double)
-mkMelody base end = do
+mkMelody :: Double -> Double -> Bool -> State StdGen (Signal Double)
+mkMelody octave base end = do
   frequencies <- (if end then (++ [base * 2]) else id) <$>
     mkFrequencies (round $ fromTime (l * 16 / len))
   return $
@@ -194,20 +194,21 @@ mkMelody base end = do
             3 :
             10 :
             []
-      trace (show scale) $
-        replicateM n $ weighted $ Data.List.zip weights scale
+      trace (show scale) (return ())
+      frequencies <- replicateM n $ weighted $ Data.List.zip weights scale
+      return $ map (limitPitch octave) frequencies
 
 mkScale :: Double -> Int -> [Double]
 mkScale base offset =
   sort $
-  (base * 2 :) $
   map (limitPitch base) $
+  (base * 2 :) $
   map (\ position -> base * (3 ** fromIntegral position)) $
   [-offset .. -offset + 6]
 
-limitPitch base frequency =
-  if frequency > 2 * base
-  then limitPitch base (frequency / 2)
-  else if frequency < 1 * base
-  then limitPitch base (frequency * 2)
+limitPitch octave frequency =
+  if frequency > octave * 2
+  then limitPitch octave (frequency / 2)
+  else if frequency < octave
+  then limitPitch octave (frequency * 2)
   else frequency
