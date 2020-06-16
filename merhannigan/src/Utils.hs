@@ -26,3 +26,10 @@ _weightedToUnweighted list = case list of
 
 range :: Random a => (a, a) -> State StdGen a
 range bounds = randomInState $ randomR bounds
+
+suchThat :: State StdGen a -> (a -> Bool) -> State StdGen a
+suchThat action predicate = do
+  candidate <- action
+  if predicate candidate
+    then return candidate
+    else suchThat action predicate

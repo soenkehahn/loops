@@ -195,8 +195,22 @@ mkMelody octave base end = do
             10 :
             []
       trace (show scale) (return ())
-      frequencies <- replicateM n $ weighted $ Data.List.zip weights scale
+      let pickFromScale = weighted $ Data.List.zip weights scale
+      frequencies <- replicateWithLast n $ \ last ->
+        case last of
+          Nothing -> pickFromScale
+          Just last -> pickFromScale `suchThat` (\ frequency -> frequency /= last)
       return $ map (limitPitch octave) frequencies
+
+replicateWithLast :: Monad m => Int -> (Maybe a -> m a) -> m [a]
+replicateWithLast n action = inner n Nothing
+  where
+    inner n last = case n of
+      0 -> return []
+      n -> do
+        a <- action last
+        rest <- inner (n - 1) (Just a)
+        return $ a : rest
 
 mkScale :: Double -> Int -> [Double]
 mkScale base offset =
