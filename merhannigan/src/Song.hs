@@ -183,7 +183,7 @@ mkMelody octave base end = do
 
     mkFrequencies :: Int -> State StdGen [Double]
     mkFrequencies n = do
-      let scale = mkScale base 1
+      let scale = mkScale base 0
           weights =
             10 :
             3 :
