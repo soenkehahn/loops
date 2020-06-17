@@ -4,43 +4,43 @@
 
 module Song where
 
-import Signal
-import Data.List
-import Data.Ratio
-import Debug.Trace
 import Control.Arrow (first)
-import Signal.Core
-import Signal.Memoize
-import Utils
-import Signal.Snippet
-import Signal.Utils
-import Prelude ()
 import Control.Monad
 import Control.Monad.Trans.State
+import Data.List (sort, zip)
+import Data.Ratio
+import Prelude ()
+import Signal
+import Signal.Core
+import Signal.Memoize
+import Signal.Snippet
+import Signal.Utils
 import System.Random
+import Utils
 
 song :: IO (Signal Double)
 song = do
   gen <- getStdGen
   let tracks = evalState (randomSong 110) gen
   return $
-    -- focus (l * 4) 1000 $
-    -- flip take (l * 8) $
+    -- focus (l * 48) 1000 $
+    -- flip take (l * 16) $
     tracks
 
 randomSong :: Double -> State StdGen (Signal Double)
 randomSong base = do
   a <- randomPart (base * 2) base False
-  b <- randomPart (base * 2) (base * 3 / 2) False
-  c <- randomPart (base * 2) base True
-  return $ raster (l * 16) (map (1 .>) [a, b, c])
+  b <- randomPart (base * 2) (base * 4 / 3) False
+  c <- randomPart (base * 2) (base * 3 / 2) False
+  d <- randomPart (base * 2) base True
+  return $ raster (l * 16) (map (1 .>) [a, b, c, d])
 
 randomPart :: Double -> Double -> Bool -> State StdGen (Signal Double)
 randomPart octave base end = do
   ticks <- mkTicks
   gongs <- mkGongs base end
   snares <- mkSnares
-  melody <- mkMelody octave (base * 2) end
+  melody <- mkMelody octave (base * 2) (l * 16) end
   return $ mix $
     d ticks :
     d gongs :
@@ -160,57 +160,18 @@ withRandomPatterns length replication mkSignal patterns = do
           (denominator weight - numerator weight, False) :
           []
 
-compress :: Double -> Double -> Double
-compress 0 x = x
-compress _ 0 = 0
-compress tweak x | x > 0 = - (((1 - tweak) ** x) - 1) / tweak
-compress tweak x = - compress tweak (- x)
-
-mkMelody :: Double -> Double -> Bool -> State StdGen (Signal Double)
-mkMelody octave base end = do
-  frequencies <- (if end then (++ [base * 2]) else id) <$>
-    mkFrequencies (round $ fromTime (l * 16 / len))
-  return $
-    fmap (* 0.03) $
-    evenly (map (\ frequency _time -> n frequency) frequencies)
-      (len * fromIntegral (length frequencies))
-
+pickFromScale scale = weighted $ Data.List.zip weights scale
   where
-    len = l / 6
-    n frequency =
-      adsr len (Adsr 0.05 0 1 0.1) /\
-      constSpeedup frequency (harmonics [1, 0.05])
-
-    mkFrequencies :: Int -> State StdGen [Double]
-    mkFrequencies n = do
-      let scale = mkScale base 0
-          weights =
-            10 :
-            3 :
-            10 :
-            3 :
-            10 :
-            6 :
-            3 :
-            10 :
-            []
-      trace (show scale) (return ())
-      let pickFromScale = weighted $ Data.List.zip weights scale
-      frequencies <- replicateWithLast n $ \ last ->
-        case last of
-          Nothing -> pickFromScale
-          Just last -> pickFromScale `suchThat` (\ frequency -> frequency /= last)
-      return $ map (limitPitch octave) frequencies
-
-replicateWithLast :: Monad m => Int -> (Maybe a -> m a) -> m [a]
-replicateWithLast n action = inner n Nothing
-  where
-    inner n last = case n of
-      0 -> return []
-      n -> do
-        a <- action last
-        rest <- inner (n - 1) (Just a)
-        return $ a : rest
+    weights =
+      10 :
+      3 :
+      10 :
+      3 :
+      10 :
+      6 :
+      3 :
+      10 :
+      []
 
 mkScale :: Double -> Int -> [Double]
 mkScale base offset =
@@ -226,3 +187,27 @@ limitPitch octave frequency =
   else if frequency < octave
   then limitPitch octave (frequency * 2)
   else frequency
+
+mkMelody :: Double -> Double -> Time -> Bool -> State StdGen (Signal Double)
+mkMelody octave base time end = do
+  notes <- runGrammar $
+    rule 1 (\ [S] -> [NT 1]) :
+    guarded 4 (\ [NT duration] ->
+      (duration > 0.025, [NT (duration / 2), NT (duration / 2)])) :
+    guarded 4 (\ [NT duration] ->
+      (duration < 0.125 && duration > 0.025, [NT (duration / 3), NT (duration / 3), NT (duration / 3)])) :
+    guarded 1 (\ [NT duration] -> (duration < 0.125, [T duration])) :
+    []
+  let scale = mkScale base 0
+  parts <- forM notes $ \ duration -> do
+    frequency <- pickFromScale scale
+    return $ duration ~> n (limitPitch octave frequency)
+  return $
+    fmap (* 0.04) $
+    divide parts time |>
+    if end then n base (l * 2) else empty
+
+  where
+    n frequency duration =
+      adsr (duration * 0.75) (Adsr 0.01 0 1 0.1) /\
+      constSpeedup frequency (harmonics [1, 0.05])
