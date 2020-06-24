@@ -3,38 +3,46 @@
 
 module Vommke where
 
+import Control.Monad
+import Control.Monad.Trans.State
+import Data.List (foldl')
+import Prelude ()
 import Signal
 import Signal.Core
 import Signal.Notes
 import Signal.Utils
-import Prelude ()
-import Control.Monad
 import System.IO
+import System.Random
+import Utils
 
 l = 0.3
 
 vommke :: IO (Signal Double)
 vommke = do
-  forM_ parts $ \ signal ->
+  gen <- newStdGen
+  let motif = evalState (choose motifs) gen
+  forM_ (parts motif) $ \ signal ->
     hPutStrLn stderr $ show $ end signal
   return $
     -- focus 55 500 $
-    song
+    -- flip take 20 $
+    song motif
 
-song =
-  mix parts |>
+song motif =
+  mix (parts motif) |>
   silence 5 |>
   fart |>
-  silence 5
+  silence 5 |>
+  empty
 
-parts =
-  crizzle :
-  melody :
-  bass :
-  deep :
+parts motif =
+  crizzle motif :
+  melody motif :
+  bass motif :
+  deep motif :
   []
 
-crizzle =
+crizzle motif =
   double $
   double $
   double $
@@ -43,7 +51,7 @@ crizzle =
   motif $
   note (l / 2) (base * 8)
 
-melody =
+melody motif =
   motif $
   motif $
   double $
@@ -51,14 +59,14 @@ melody =
   double $
   note l (base * 4)
 
-bass =
+bass motif =
   motif $
   motif $
   motif $
   double $
   note (l * 2) (base * 2)
 
-deep =
+deep motif =
   motif $
   motif $
   motif $
@@ -70,8 +78,15 @@ note len frequency =
   adsr len (Adsr 0.01 0.01 0.5 0.01) /\
   constSpeedup frequency saw
 
-motif a =
-  a |> a |> constSpeedup (3 / 2) a |> a
+motifs :: [Signal Double -> Signal Double]
+motifs = map (\ factors a -> foldl' (|>) empty $ map (\ factor -> constSpeedup factor a) factors) $
+  [1, 1, 3 / 2, 1] :
+  [1, 3 / 2, 1, 3 / 2] :
+  [1, 4 / 3, 1, 3 / 2] :
+  [1, 7 / 8, 1, 7 / 8] :
+  [1, 3 / 2] :
+  [1, 4 / 3, 4 / 3, 1] :
+  []
 
 double a =
   a |> a

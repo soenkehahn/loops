@@ -13,6 +13,7 @@ dependencies:
   - bytestring-conversion
   - random
   - vector
+  - transformers
 
 executables:
   vommke:
