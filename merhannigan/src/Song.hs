@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE MultiWayIf #-}
 
 module Song where
 
@@ -29,18 +30,19 @@ song = do
 
 randomSong :: Double -> State StdGen (Signal Double)
 randomSong base = do
-  a <- randomPart (base * 2) base False
-  b <- randomPart (base * 2) (base * 4 / 3) False
-  c <- randomPart (base * 2) (base * 3 / 2) False
-  d <- randomPart (base * 2) base True
+  modus <- choose [0 .. 4]
+  a <- randomPart modus base False
+  b <- randomPart modus (base * 4 / 3) False
+  c <- randomPart modus (base * 3 / 2) False
+  d <- randomPart modus base True
   return $ raster (l * 16) (map (1 .>) [a, b, c, d])
 
-randomPart :: Double -> Double -> Bool -> State StdGen (Signal Double)
-randomPart octave base end = do
+randomPart :: Int -> Double -> Bool -> State StdGen (Signal Double)
+randomPart modus base end = do
   ticks <- mkTicks
   gongs <- mkGongs base end
   snares <- mkSnares
-  melody <- mkMelody octave (base * 2) (l * 16) end
+  melody <- mkMelody modus (base * 2) (l * 16) end
   return $ mix $
     d ticks :
     d gongs :
@@ -181,6 +183,12 @@ mkScale base offset =
   map (\ position -> base * (3 ** fromIntegral position)) $
   [-offset .. -offset + 6]
 
+noteFromScale :: [Double] -> Int -> Double
+noteFromScale scale i =
+  if | i < 0 -> noteFromScale (map (/ 2) scale) (i + 7)
+     | i >= length scale -> noteFromScale (map (* 2) scale) (i - 7)
+     | otherwise -> scale !! i
+
 limitPitch octave frequency =
   if frequency > octave * 2
   then limitPitch octave (frequency / 2)
@@ -188,26 +196,44 @@ limitPitch octave frequency =
   then limitPitch octave (frequency * 2)
   else frequency
 
-mkMelody :: Double -> Double -> Time -> Bool -> State StdGen (Signal Double)
-mkMelody octave base time end = do
-  notes <- runGrammar $
-    rule 1 (\ [S] -> [NT 1]) :
-    guarded 4 (\ [NT duration] ->
-      (duration > 0.025, [NT (duration / 2), NT (duration / 2)])) :
-    guarded 4 (\ [NT duration] ->
-      (duration < 0.125 && duration > 0.025, [NT (duration / 3), NT (duration / 3), NT (duration / 3)])) :
-    guarded 1 (\ [NT duration] -> (duration < 0.125, [T duration])) :
-    []
-  let scale = mkScale base 0
-  parts <- forM notes $ \ duration -> do
-    frequency <- pickFromScale scale
-    return $ duration ~> n (limitPitch octave frequency)
+mkMelody :: Int -> Double -> Time -> Bool -> State StdGen (Signal Double)
+mkMelody modus base time end = do
+  notes <- mkNotes modus base
   return $
     fmap (* 0.04) $
-    divide parts time |>
+    evenly (map n notes) time |>
     if end then n base (l * 2) else empty
 
   where
     n frequency duration =
       adsr (duration * 0.75) (Adsr 0.01 0 1 0.1) /\
       constSpeedup frequency (harmonics [1, 0.05])
+
+mkNotes modus base = do
+  let scale = mkScale base modus
+  stakes <- replicateM 16 (choose [0, 2, 4, 6])
+  indices <- concat <$> mapM (fill 6) (neighbors (stakes ++ [0]))
+  return $ map (noteFromScale scale) indices
+
+neighbors :: [a] -> [(a, a)]
+neighbors list = case list of
+  [] -> []
+  [_] -> []
+  a : b : rest -> (a, b) : neighbors (b : rest)
+
+fill :: Int -> (Int, Int) -> State StdGen [Int]
+fill length (from, to) = case length of
+  0 -> return []
+  1 -> return [from]
+  length -> do
+    next <- weighted $ filter (isValid . snd) $
+      [(10, from - 1), (10, from + 1), (7, from - 2), (7, from + 2), (2, from - 3), (2, from + 3)]
+    rest <- fill (length - 1) (next, to)
+    return $ from : rest
+  where
+    isValid next = abs (next - to) < length &&
+      ((length == 1) `implies` (next /= to))
+
+implies :: Bool -> Bool -> Bool
+implies a b =
+  if a then b else True
