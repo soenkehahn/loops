@@ -10,6 +10,7 @@ songs =
   "leeloo" :
   "vommke" :
   "merhannigan" :
+  "olmfeld" :
   []
 
 main = do

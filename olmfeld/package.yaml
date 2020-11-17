@@ -1,0 +1,18 @@
+name: song
+ghc-options:
+  - -fdefer-typed-holes
+  - -O1
+  - -Wall
+  - -Wno-name-shadowing
+default-extensions:
+  - Strict
+
+dependencies:
+  - base
+  - loops-lib
+
+executables:
+  song:
+    main: Main.hs
+    source-dirs:
+      - src
