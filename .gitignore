@@ -1,1 +1,3 @@
 /album/
+*/.stack-work/
+*.cabal
