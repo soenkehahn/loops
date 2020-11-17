@@ -20,7 +20,7 @@ memoize arrayLength signal = case end signal of
             runSignal (_toTime length arrayLength index)
      in Signal (end signal) $ do
           return $ \time -> do
-            return $ array ! (_toIndex length arrayLength time)
+            return $ array ! _toIndex length arrayLength time
   Infinite -> error "memoize not implemented for infinite signals"
 
 _toIndex :: Time -> Int -> Time -> Int
@@ -38,7 +38,4 @@ mem signal = case end signal of
 
 memoizeWave :: Signal Double -> Signal Double
 memoizeWave signal =
-  cycle $
-    memoize 44100 $
-      flip take 1 $
-        signal
+  cycle $ memoize 44100 $ flip take 1 signal

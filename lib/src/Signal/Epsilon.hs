@@ -19,13 +19,10 @@ instance EpsilonOrd Int where
   compare = Prelude.compare
 
 instance EpsilonOrd Double where
-  compare a b =
-    if abs (a - b) < 0.000000001
-      then EQ
-      else
-        if a < b
-          then LT
-          else GT
+  compare a b
+    | abs (a - b) < 0.000000001 = EQ
+    | a < b = LT
+    | otherwise = GT
 
 lt :: EpsilonOrd a => a -> a -> Bool
 lt a b = case Signal.Epsilon.compare a b of
@@ -44,8 +41,7 @@ instance {-# OVERLAPPABLE #-} EpsilonOrd a => EpsilonEq a where
 
 instance EpsilonEq a => EpsilonEq [a] where
   as ==== bs = case (as, bs) of
-    (a : ar, b : br) ->
-      if a ==== b then ar ==== br else False
+    (a : ar, b : br) -> a ==== b && ar ==== br
     ([], []) -> True
     _ -> False
 

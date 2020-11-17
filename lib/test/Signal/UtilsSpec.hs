@@ -9,7 +9,7 @@ spec :: Spec
 spec = do
   describe "fanOut" $ do
     it "applies the given function to every element and adds the results" $ do
-      let signal = fanOut [1.0, 0.2, 0.03] (\x -> constant x)
+      let signal = fanOut [1.0, 0.2, 0.03] constant
       test 1 1 signal [1.23 :: Double]
 
   describe "harmonics" $ do

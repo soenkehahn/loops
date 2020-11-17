@@ -103,8 +103,8 @@ getSample signal time = runST $ do
   runSignal time
 
 _getSampleTimes :: Time -> Time -> Vector Time
-_getSampleTimes delta end = case end of
-  end -> generate (epsilonCeiling (end / delta)) $ \i ->
+_getSampleTimes delta end =
+  generate (epsilonCeiling (end / delta)) $ \i ->
     fromIntegral i * delta
   where
     epsilonCeiling :: Time -> Int
@@ -155,8 +155,7 @@ printSamples signal = case end signal of
           runSignal <- initialize signal
           forM sampleTimesChunks $ \sampleTimes -> do
             Vec.forM sampleTimes $ \time -> do
-              sample <- runSignal time
-              return sample
+              runSignal time
     forM_ chunks $ \chunk -> do
       Vec.forM_ chunk $ \sample -> do
         BS.putStrLn $ toByteString' sample

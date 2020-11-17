@@ -92,10 +92,10 @@ tau = pi * 2
 phase :: Signal Double
 phase = Signal Infinite $
   return $ \time ->
-    return $ phase_array VS.! (round (fromTime time * 44100) `mod` 44100)
+    return $ phaseArray VS.! (round (fromTime time * 44100) `mod` 44100)
 
-phase_array :: VS.Vector Double
-phase_array = VS.generate 44100 $ \index ->
+phaseArray :: VS.Vector Double
+phaseArray = VS.generate 44100 $ \index ->
   tau * fromIntegral index / 44100
 
 project :: (Double, Double) -> (Double, Double) -> Double -> Double
@@ -194,7 +194,7 @@ mixWithVolumes = foldl' (\acc (volume, signal) -> acc +++ fmap (* volume) signal
 a /\ b = (*) <$> a <*> b
 
 silence :: Num a => Time -> Signal a
-silence length = take (constant 0) length
+silence = take (constant 0)
 
 saw :: Signal Double
 saw = fmap (project (0, tau) (-1, 1)) phase

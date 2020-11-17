@@ -47,8 +47,7 @@ spec = do
 
   describe "dividing system" $ do
     let n :: Integer -> Time -> Signal Integer
-        n value length =
-          take (constant value) length
+        n value = take (constant value)
 
     describe "divide" $ do
       it "allows to divide into two halfs evenly" $ do

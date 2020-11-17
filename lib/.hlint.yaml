@@ -1,0 +1,8 @@
+- ignore:
+    name: Redundant do
+- ignore:
+    name: Use <$>
+- ignore:
+    name: Use list literal
+- ignore:
+    name: Use list comprehension
