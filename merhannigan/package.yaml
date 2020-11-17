@@ -9,35 +9,12 @@ default-extensions:
 
 dependencies:
   - base
-  - bytestring
-  - bytestring-conversion
   - random
-  - vector
   - transformers
+  - loops-lib
 
 executables:
   song:
     main: main.hs
     source-dirs:
       - src
-
-tests:
-  spec:
-    main: Spec.hs
-    source-dirs:
-      - test
-      - src
-    dependencies:
-      - hspec
-      - HUnit
-      - QuickCheck
-      - silently
-      - unordered-containers
-
-benchmarks:
-  benchmark:
-    main: ../benchmark/Main.hs
-    source-dirs:
-      - src
-    dependencies:
-      - criterion

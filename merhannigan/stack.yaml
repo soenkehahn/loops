@@ -1,3 +1,9 @@
 resolver: lts-15.16
 packages:
-  - ./.
+  - .
+
+extra-deps:
+  - git: https://github.com/soenkehahn/loops
+    commit: d638d054bb26877531e6f49b5282af0eb231b78f
+    subdirs:
+      - lib
