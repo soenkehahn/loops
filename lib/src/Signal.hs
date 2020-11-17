@@ -136,6 +136,8 @@ integral signal = Signal (end signal) $ do
     writeSTRef ref next
     return next
 
+infixl 9 |>
+
 (|>) :: Signal a -> Signal a -> Signal a
 a |> b = case end a of
   Infinite -> a
@@ -184,8 +186,10 @@ a +++ b =
               else return 0
           return (x + y)
 
-mix :: Num a => [Signal a] -> Signal a
-mix = foldl' (+++) empty
+mix :: Num a => [(a, Signal a)] -> Signal a
+mix =
+  foldl' (+++) empty
+    . map (\(volume, signal) -> fmap (volume *) signal)
 
 mixWithVolumes :: Num a => [(a, Signal a)] -> Signal a
 mixWithVolumes = foldl' (\acc (volume, signal) -> acc +++ fmap (* volume) signal) empty

@@ -1,5 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 
 module Signal.Snippet
   ( (|->),
@@ -9,7 +10,7 @@ module Signal.Snippet
     (~>),
     (.>),
     -- exported for testing
-    Part (..),
+    Part,
     _signalVectorConfiguration,
   )
 where
@@ -20,28 +21,23 @@ import Data.Vector (Vector, fromList, (!))
 import Signal
 import Signal.Core
 import Signal.Epsilon
+import Utils
 
 infix 7 |->
 
 (|->) :: Num a => Time -> Signal a -> Signal a
 time |-> signal = silence time |> signal
 
-data Part a = Part
-  { weight :: Double,
-    signal :: Time -> Signal a
-  }
-
-(~>) :: Double -> (Time -> Signal a) -> Part a
-(~>) = Part
+type Part a = (Double, Time -> Signal a)
 
 (.>) :: Double -> Signal a -> Part a
-weight .> signal = Part weight (const signal)
+weight .> signal = (weight, const signal)
 
 evenly :: Num a => [Time -> Signal a] -> Time -> Signal a
-evenly parts = divide $ map (Part 1) parts
+evenly parts = divide $ map (1,) parts
 
 raster :: Num a => Time -> [Part a] -> Signal a
-raster unit parts = divide parts (unit * Time (sum (map weight parts)))
+raster unit parts = divide parts (unit * Time (sum (map fst parts)))
 
 divide :: Num a => [Part a] -> Time -> Signal a
 divide [] length = silence length
@@ -61,8 +57,8 @@ mkSnippets :: [Part a] -> Time -> [PreSnippet a]
 mkSnippets parts length =
   snd $ foldl' inner (0, []) parts
   where
-    timeUnit = length / Time (sum (map weight parts))
-    inner (time, acc) (Part weight signal) =
+    timeUnit = length / Time (sum (map fst parts))
+    inner (time, acc) (weight, signal) =
       let timeInGrid = Time weight * timeUnit
        in (time + timeInGrid, PreSnippet time (signal timeInGrid) : acc)
 
@@ -79,9 +75,9 @@ _signalVectorConfiguration :: [Part a] -> Time -> (Int, Time)
 _signalVectorConfiguration parts length =
   (vectorLength, tailStart)
   where
-    timeUnit = length / Time (sum (map weight parts))
+    timeUnit = length / Time (sum (map fst parts))
     vectorLength = ceiling $ fromTime (length / timeUnit)
-    tailStart = timeUnit * Time (fromIntegral (ceiling (sum (map weight parts)) :: Int))
+    tailStart = timeUnit * Time (fromIntegral (ceiling (sum (map fst parts)) :: Int))
 
 data SignalVector s a = SignalVector
   { _vector :: Vector [Snippet s a],

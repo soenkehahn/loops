@@ -151,9 +151,9 @@ simpleDivide :: Num a => [Part a] -> Time -> Signal a
 simpleDivide [] len = silence len
 simpleDivide parts len = inner parts
   where
-    timeUnit = len / Time (sum (map (realToFrac . weight) parts))
+    timeUnit = len / Time (sum (map (realToFrac . fst) parts))
     inner parts = case parts of
-      Part weight part : rest ->
+      (weight, part) : rest ->
         let len = (timeUnit * Time (realToFrac weight))
          in part len
               +++ len |-> inner rest

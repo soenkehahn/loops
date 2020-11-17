@@ -36,3 +36,8 @@ suchThat action predicate = do
   if predicate candidate
     then return candidate
     else suchThat action predicate
+
+infix 8 ~>
+
+(~>) :: a -> b -> (a, b)
+a ~> b = (a, b)

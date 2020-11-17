@@ -5,6 +5,7 @@ import Signal
 import Signal.Core
 import Test.Hspec hiding (focus)
 import Test.Utils
+import Utils
 import Prelude ()
 
 spec :: Spec
@@ -119,8 +120,12 @@ spec = do
 
   describe "mix" $ do
     it "mixes a list of signals with +++" $ do
-      let signal = mix [constant 23, take (constant 42) 1]
+      let signal = mix [1 ~> constant 23, 1 ~> take (constant 42) 1]
       test 1 3 signal [65, 23, 23 :: Double]
+
+    it "allows to specify the volume" $ do
+      let signal = mix [0.01 ~> constant 23, 1 ~> constant 42]
+      test 1 1 signal [42.23 :: Double]
 
   describe "mixWithVolumes" $ do
     it "mixes signals according to their given volume" $ do
