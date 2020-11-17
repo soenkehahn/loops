@@ -1,34 +1,35 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Signal.Snippet (
-  (|->),
-  divide,
-  evenly,
-  raster,
-  (~>),
-  (.>),
+module Signal.Snippet
+  ( (|->),
+    divide,
+    evenly,
+    raster,
+    (~>),
+    (.>),
+    -- exported for testing
+    Part (..),
+    _signalVectorConfiguration,
+  )
+where
 
-  -- exported for testing
-  Part(..),
-  _signalVectorConfiguration,
-) where
-
-import Signal.Core
-import Signal
-import Signal.Epsilon
 import Control.Monad.ST
 import Data.List (foldl')
-import Data.Vector (Vector, (!), fromList)
+import Data.Vector (Vector, fromList, (!))
+import Signal
+import Signal.Core
+import Signal.Epsilon
 
 infix 7 |->
+
 (|->) :: Num a => Time -> Signal a -> Signal a
 time |-> signal = silence time |> signal
 
-data Part a = Part {
-  weight :: Double,
-  signal :: Time -> Signal a
-}
+data Part a = Part
+  { weight :: Double,
+    signal :: Time -> Signal a
+  }
 
 (~>) :: Double -> (Time -> Signal a) -> Part a
 (~>) = Part
@@ -46,14 +47,13 @@ divide :: Num a => [Part a] -> Time -> Signal a
 divide [] length = silence length
 divide parts length =
   let snippets = mkSnippets parts length
-  in Signal (partsLength snippets length) $ do
-    signalVector <- mkSignalVector (_signalVectorConfiguration parts length) snippets
-    return $ \ time -> do
-      runSignalVector signalVector time
+   in Signal (partsLength snippets length) $ do
+        signalVector <- mkSignalVector (_signalVectorConfiguration parts length) snippets
+        return $ \time -> do
+          runSignalVector signalVector time
 
-data PreSnippet a
-  = PreSnippet {
-    preSnippetStart :: Time,
+data PreSnippet a = PreSnippet
+  { preSnippetStart :: Time,
     preSnippetSignal :: Signal a
   }
 
@@ -64,7 +64,7 @@ mkSnippets parts length =
     timeUnit = length / Time (sum (map weight parts))
     inner (time, acc) (Part weight signal) =
       let timeInGrid = Time weight * timeUnit
-      in (time + timeInGrid, PreSnippet time (signal timeInGrid) : acc)
+       in (time + timeInGrid, PreSnippet time (signal timeInGrid) : acc)
 
 partsLength :: [PreSnippet a] -> Time -> Length
 partsLength snippets length =
@@ -83,9 +83,8 @@ _signalVectorConfiguration parts length =
     vectorLength = ceiling $ fromTime (length / timeUnit)
     tailStart = timeUnit * Time (fromIntegral (ceiling (sum (map weight parts)) :: Int))
 
-data SignalVector s a
-  = SignalVector {
-    _vector :: Vector [Snippet s a],
+data SignalVector s a = SignalVector
+  { _vector :: Vector [Snippet s a],
     _tailStart :: Time,
     _tail :: [Snippet s a]
   }
@@ -94,14 +93,19 @@ runSignalVector :: Num a => SignalVector s a -> Time -> ST s a
 runSignalVector (SignalVector vector tailStart tail) time =
   runSnippets snippets time
   where
-    snippets = if time `lt` tailStart
-      then
-        let index = max 0 $ floor (fromTime (time / tailStart) * fromIntegral (length vector))
-        in vector ! index
-      else tail
+    snippets =
+      if time `lt` tailStart
+        then
+          let index = max 0 $ floor (fromTime (time / tailStart) * fromIntegral (length vector))
+           in vector ! index
+        else tail
 
-mkSignalVector :: forall a s . Num a =>
-  (Int, Time) -> [PreSnippet a] -> ST s (SignalVector s a)
+mkSignalVector ::
+  forall a s.
+  Num a =>
+  (Int, Time) ->
+  [PreSnippet a] ->
+  ST s (SignalVector s a)
 mkSignalVector (vectorLength, tailStart) snippets = do
   initializedSnippets <- mapM initializeSnippet snippets
   return $
@@ -110,11 +114,10 @@ mkSignalVector (vectorLength, tailStart) snippets = do
           prune (start, Finite (start + tailStart / fromIntegral vectorLength)) initializedSnippets
         vector = Data.Vector.fromList $ map mkCell (init [0, step .. tailStart])
         tail = prune (tailStart, Infinite) initializedSnippets
-    in SignalVector vector tailStart tail
+     in SignalVector vector tailStart tail
 
-data Snippet s a
-  = Snippet {
-    snippetStart :: Time,
+data Snippet s a = Snippet
+  { snippetStart :: Time,
     snippetLength :: Length,
     runSnippet :: Time -> ST s a
   }
@@ -127,9 +130,10 @@ initializeSnippet (PreSnippet start (Signal length initialize)) = do
 runSnippets :: Num a => [Snippet s a] -> Time -> ST s a
 runSnippets snippets time = case snippets of
   snippet : rest -> do
-    sample <- if inRange snippet time
-      then runSnippet snippet (time - snippetStart snippet)
-      else return 0
+    sample <-
+      if inRange snippet time
+        then runSnippet snippet (time - snippetStart snippet)
+        else return 0
     (sample +) <$> runSnippets rest time
   [] -> return 0
 
@@ -137,8 +141,8 @@ inRange :: Snippet s a -> Time -> Bool
 inRange (Snippet start length _) time = case length of
   Infinite -> not (time `lt` start)
   Finite length ->
-    not (time `lt` start) &&
-    time `lt` (start + length)
+    not (time `lt` start)
+      && time `lt` (start + length)
 
 prune :: (Time, Length) -> [Snippet s a] -> [Snippet s a]
 prune range = filter (withinRange range)

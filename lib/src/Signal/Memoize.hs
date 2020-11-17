@@ -3,24 +3,24 @@
 module Signal.Memoize where
 
 import Control.Monad.ST
-import Data.Vector.Storable (Vector, generateM, (!), Storable)
+import Data.Vector.Storable (Storable, Vector, generateM, (!))
+import Signal
 import Signal.Core
 import Signal.Epsilon
-import Signal
 import Prelude ()
 
-memoize :: forall a . Storable a => Int -> Signal a -> Signal a
+memoize :: forall a. Storable a => Int -> Signal a -> Signal a
 memoize arrayLength signal = case end signal of
   Finite length | length ==== 0 -> empty
   Finite length ->
     let array :: Vector a
         array = runST $ do
           runSignal <- initialize signal
-          generateM arrayLength $ \ index -> do
+          generateM arrayLength $ \index -> do
             runSignal (_toTime length arrayLength index)
-    in Signal (end signal) $ do
-      return $ \ time -> do
-        return $ array ! (_toIndex length arrayLength time)
+     in Signal (end signal) $ do
+          return $ \time -> do
+            return $ array ! (_toIndex length arrayLength time)
   Infinite -> error "memoize not implemented for infinite signals"
 
 _toIndex :: Time -> Int -> Time -> Int
@@ -39,6 +39,6 @@ mem signal = case end signal of
 memoizeWave :: Signal Double -> Signal Double
 memoizeWave signal =
   cycle $
-  memoize 44100 $
-  flip take 1 $
-  signal
+    memoize 44100 $
+      flip take 1 $
+        signal

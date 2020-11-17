@@ -1,42 +1,43 @@
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RankNTypes #-}
 
-module Signal.Core (
-  Time(..),
-  minTime,
-  maxTime,
-  maximumTime,
-  Length(..),
-  mapLength,
-  minLength,
-  maxLength,
-  Signal(..),
-  simpleSignal,
-  getSample,
-  runOnTimes,
-  Signal.Core.toList,
-  toVector,
-  printSamples,
+module Signal.Core
+  ( Time (..),
+    minTime,
+    maxTime,
+    maximumTime,
+    Length (..),
+    mapLength,
+    minLength,
+    maxLength,
+    Signal (..),
+    simpleSignal,
+    getSample,
+    runOnTimes,
+    Signal.Core.toList,
+    toVector,
+    printSamples,
+    -- exported for testing
+    _getSampleTimes,
+    _equalSlices,
+  )
+where
 
-  -- exported for testing
-  _getSampleTimes,
-  _equalSlices,
-) where
-
-import Signal.Epsilon
-import System.IO
-import Data.ByteString.Conversion
 import Control.Monad.ST
-import Data.Traversable
-import Data.Foldable
 import qualified Data.ByteString.Char8 as BS
+import Data.ByteString.Conversion
+import Data.Foldable
+import Data.Traversable
 import Data.Vector.Storable (Storable, Vector, generate, slice)
 import qualified Data.Vector.Storable as Vec
+import Signal.Epsilon
+import System.IO
 
-newtype Time = Time {
-  fromTime :: Double
-} deriving (Num, Fractional, Enum, Storable)
+newtype Time = Time
+  { fromTime :: Double
+  }
+  deriving (Num, Fractional, Enum, Storable)
 
 instance Show Time where
   show (Time t) = show t
@@ -56,7 +57,7 @@ maximumTime = Time . maximum . map fromTime
 data Length
   = Finite Time
   | Infinite
-  deriving Show
+  deriving (Show)
 
 instance EpsilonEq Length where
   Infinite ==== Infinite = True
@@ -81,18 +82,19 @@ maxLength a b = case (a, b) of
   (_, Infinite) -> Infinite
   (Infinite, _) -> Infinite
 
-data Signal a = Signal {
-  end :: Length,
-  initialize :: forall s . ST s (Time -> ST s a)
-} deriving (Functor)
+data Signal a = Signal
+  { end :: Length,
+    initialize :: forall s. ST s (Time -> ST s a)
+  }
+  deriving (Functor)
 
 instance Applicative Signal where
-  pure a = Signal Infinite $ return $ \ _time -> return a
+  pure a = Signal Infinite $ return $ \_time -> return a
   fSignal <*> xSignal =
     Signal (minLength (end fSignal) (end xSignal)) $ do
       runF <- initialize fSignal
       runX <- initialize xSignal
-      return $ \ time -> do
+      return $ \time -> do
         runF time <*> runX time
 
 getSample :: Signal a -> Time -> a
@@ -102,25 +104,25 @@ getSample signal time = runST $ do
 
 _getSampleTimes :: Time -> Time -> Vector Time
 _getSampleTimes delta end = case end of
-  end -> generate (epsilonCeiling (end / delta)) $ \ i ->
+  end -> generate (epsilonCeiling (end / delta)) $ \i ->
     fromIntegral i * delta
   where
     epsilonCeiling :: Time -> Int
     epsilonCeiling x =
       let c = ceiling $ fromTime x
-      in if Time (realToFrac (c - 1)) ==== x then c - 1 else c
+       in if Time (realToFrac (c - 1)) ==== x then c - 1 else c
 
 runOnTimes :: Storable a => Signal a -> Vector Time -> Vector a
 runOnTimes signal sampleTimes = runST $ do
-    runSignal <- initialize signal
-    Vec.mapM runSignal sampleTimes
+  runSignal <- initialize signal
+  Vec.mapM runSignal sampleTimes
 
 toList :: Time -> Signal a -> [a]
 toList delta signal = case end signal of
   Infinite -> error "toList: infinite signals not supported"
   Finite end -> runST $ do
     runSignal <- initialize signal
-    forM (Vec.toList (_getSampleTimes delta end)) $ \ time ->
+    forM (Vec.toList (_getSampleTimes delta end)) $ \time ->
       runSignal time
 
 toVector :: Storable a => Time -> Signal a -> Vector a
@@ -130,13 +132,13 @@ toVector delta signal = case end signal of
 
 _equalSlices :: Storable a => Int -> Vector a -> [Vector a]
 _equalSlices n vector =
-  flip map [0 .. n - 1] $ \ i ->
+  flip map [0 .. n - 1] $ \i ->
     let start = round $ position i
         end = round $ position (i + 1)
-    in slice
-      start
-      (min (end - start) (Vec.length vector - start))
-      vector
+     in slice
+          start
+          (min (end - start) (Vec.length vector - start))
+          vector
   where
     position :: Int -> Double
     position i = realToFrac (i * Vec.length vector) / realToFrac n
@@ -148,18 +150,18 @@ printSamples signal = case end signal of
     hPutStrLn stderr ("end: " ++ show end)
     let sampleTimesChunks =
           _equalSlices 4 $
-          _getSampleTimes (1 / 44100) end
+            _getSampleTimes (1 / 44100) end
         chunks = runST $ do
           runSignal <- initialize signal
-          forM sampleTimesChunks $ \ sampleTimes -> do
-            Vec.forM sampleTimes $ \ time -> do
+          forM sampleTimesChunks $ \sampleTimes -> do
+            Vec.forM sampleTimes $ \time -> do
               sample <- runSignal time
               return sample
-    forM_ chunks $ \ chunk -> do
-      Vec.forM_ chunk $ \ sample -> do
+    forM_ chunks $ \chunk -> do
+      Vec.forM_ chunk $ \sample -> do
         BS.putStrLn $ toByteString' sample
 
 simpleSignal :: (Time -> a) -> Signal a
 simpleSignal function = Signal Infinite $ do
-  return $ \ time -> do
+  return $ \time -> do
     return $ function time

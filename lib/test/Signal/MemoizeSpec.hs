@@ -1,9 +1,9 @@
 module Signal.MemoizeSpec where
 
-import Test.Hspec
 import Signal
 import Signal.Core
 import Signal.Memoize
+import Test.Hspec
 import Test.Utils
 
 spec :: Spec
@@ -43,5 +43,5 @@ spec = do
       end signal `shouldBeCloseTo` Finite 0
 
     it "throws an exception for infinite signals" $ do
-      print (end (memoize 3 (constant (0 :: Double)))) `shouldThrow`
-        errorCall "memoize not implemented for infinite signals"
+      print (end (memoize 3 (constant (0 :: Double))))
+        `shouldThrow` errorCall "memoize not implemented for infinite signals"

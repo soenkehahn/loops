@@ -1,11 +1,11 @@
 module SignalSpec where
 
-import Prelude ()
+import qualified Data.Vector.Storable as Vec
 import Signal
 import Signal.Core
 import Test.Hspec hiding (focus)
 import Test.Utils
-import qualified Data.Vector.Storable as Vec
+import Prelude ()
 
 spec :: Spec
 spec = do
@@ -124,10 +124,11 @@ spec = do
 
   describe "mixWithVolumes" $ do
     it "mixes signals according to their given volume" $ do
-      let signal = mixWithVolumes $
-            (2, constant (23 :: Double)) :
-            (3, constant 42) :
-            []
+      let signal =
+            mixWithVolumes $
+              (2, constant (23 :: Double)) :
+              (3, constant 42) :
+              []
       getSample signal 0 `shouldBe` 2 * 23 + 3 * 42
 
   describe "/\\" $ do
@@ -167,28 +168,40 @@ spec = do
 
     it "allows to specify the length of the ramp" $ do
       let signal = ramp 0.3 1.3 0.5
-      test 0.1 2 signal [0.3, 0.5, 0.7, 0.9, 1.1:: Double]
+      test 0.1 2 signal [0.3, 0.5, 0.7, 0.9, 1.1 :: Double]
 
   describe "adsr" $ do
     it "allows to have an attack" $ do
-      test 0.1 2 (adsr 1 (Adsr 0.3 0 1 0))
+      test
+        0.1
+        2
+        (adsr 1 (Adsr 0.3 0 1 0))
         [0, 1 / 3, 1 * 2 / 3, 1, 1, 1, 1, 1, 1, 1]
 
     it "allows to have a release after the length" $ do
-      test 0.1 2 (adsr 1 (Adsr 0 0 1 0.3))
+      test
+        0.1
+        2
+        (adsr 1 (Adsr 0 0 1 0.3))
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 * 2 / 3, 1 / 3]
 
     it "allows to have decay and sustain" $ do
-      test 0.1 2 (adsr 1 (Adsr 0 0.2 0.5 0))
+      test
+        0.1
+        2
+        (adsr 1 (Adsr 0 0.2 0.5 0))
         [1, 0.75, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
 
     it "release ramp starts at sustain volume" $ do
-      test 0.1 2 (adsr 1 (Adsr 0 0.2 0.5 0.3))
+      test
+        0.1
+        2
+        (adsr 1 (Adsr 0 0.2 0.5 0.3))
         [1, 0.75, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 * 2 / 3, 0.5 / 3]
 
     it "crashes when the sum of attack and decay is longer then the given length" $ do
-      print (getSample (adsr 1 (Adsr 0.5 0.7 0 0.8)) 0) `shouldThrow`
-        errorCall "(Adsr 0.5 0.7 0.0 0.8) requires a length longer than 1.2, given length: 1.0"
+      print (getSample (adsr 1 (Adsr 0.5 0.7 0 0.8)) 0)
+        `shouldThrow` errorCall "(Adsr 0.5 0.7 0.0 0.8) requires a length longer than 1.2, given length: 1.0"
 
     it "doesn't include the release in the given length" $ do
       getSample (adsr 1 (Adsr 0.4 0.4 0 0.4)) 0 `shouldBeCloseTo` 0

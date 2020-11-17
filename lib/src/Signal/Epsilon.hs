@@ -20,12 +20,12 @@ instance EpsilonOrd Int where
 
 instance EpsilonOrd Double where
   compare a b =
-    if abs (a - b) < 0.000000001 then
-      EQ
-    else if a < b then
-      LT
-    else
-      GT
+    if abs (a - b) < 0.000000001
+      then EQ
+      else
+        if a < b
+          then LT
+          else GT
 
 lt :: EpsilonOrd a => a -> a -> Bool
 lt a b = case Signal.Epsilon.compare a b of
@@ -34,6 +34,7 @@ lt a b = case Signal.Epsilon.compare a b of
 
 class EpsilonEq a where
   (====) :: a -> a -> Bool
+
 infix 4 ====
 
 instance {-# OVERLAPPABLE #-} EpsilonOrd a => EpsilonEq a where
@@ -51,10 +52,12 @@ instance EpsilonEq a => EpsilonEq [a] where
 instance EpsilonEq a => EpsilonEq (Data.Vector.Vector a) where
   as ==== bs = Data.Vector.toList as ==== Data.Vector.toList bs
 
-instance (EpsilonEq a, Data.Vector.Storable.Storable a) =>
-  EpsilonEq (Data.Vector.Storable.Vector a) where
-    as ==== bs =
-      Data.Vector.Storable.toList as ==== Data.Vector.Storable.toList bs
+instance
+  (EpsilonEq a, Data.Vector.Storable.Storable a) =>
+  EpsilonEq (Data.Vector.Storable.Vector a)
+  where
+  as ==== bs =
+    Data.Vector.Storable.toList as ==== Data.Vector.Storable.toList bs
 
 instance EpsilonEq a => EpsilonEq (Maybe a) where
   Nothing ==== Nothing = True

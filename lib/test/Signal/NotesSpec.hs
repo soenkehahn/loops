@@ -1,7 +1,7 @@
 module Signal.NotesSpec where
 
-import Test.Hspec
 import Signal.Notes
+import Test.Hspec
 import Test.Utils
 
 spec :: Spec
